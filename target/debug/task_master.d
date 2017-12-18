@@ -1,1 +1,1 @@
-/Users/vcombey/task_master/target/debug/task_master.dSYM: /Users/vcombey/task_master/src/main.rs
+/Users/lazrossi/Documents/42/taskMaster/target/debug/task_master.dSYM: /Users/lazrossi/Documents/42/taskMaster/src/main.rs
