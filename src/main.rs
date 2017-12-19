@@ -1,13 +1,13 @@
 use std::io;
 use std::io::Write;
+use std::env;
 
 fn main() {
 	loop {
-		print!("$> ");
-		match io::stdout().flush() {
-			Ok(a) => a,
-				Err(e) => panic!("try to flush but error occurs {:?}", e),
-		}
+        let args: Vec<String> = env::args().collect();
+        println!("{:?}", args);
+		print!("task_master> ");
+		io::stdout().flush().unwrap();
 		let mut guess = String::new();
 
 		io::stdin().read_line(&mut guess)
