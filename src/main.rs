@@ -10,7 +10,17 @@ use std::fs::File;
 use std::io::prelude::*;
 extern crate yaml_rust;
 #[allow(unused_imports)]
-use yaml_rust::{YamlLoader, YamlEmitter};
+use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
+
+use std::process::Command;
+
+fn exec_command() {
+    Command::new("./wait_and_print").spawn().unwrap();
+    Command::new("ls").arg("-l").spawn().unwrap();
+    let mut child = Command::new("cat").spawn().unwrap();
+    
+    child.wait().unwrap();
+}
 
 fn parse_argv(args: &[String]) -> (&str, &str)
 {
@@ -26,13 +36,8 @@ fn parse_argv(args: &[String]) -> (&str, &str)
     (option, filename)
 }
 
-fn main()
+fn parse_config_file(filename: &str)
 {
-    let args: Vec<String> = env::args().collect();
-   // println!("{:?}", args);
-    let (query, filename) = parse_argv(&args);
-    println!("{}, {}", query, filename);
-
     let mut f = File::open(filename).expect("file not found");
 
     let mut contents = String::new();
@@ -47,23 +52,40 @@ fn main()
     // Multi document support, doc is a yaml::Yaml
     let doc = &docs[0];
 
-    // Debug support
+
     println!("{:?}", doc);
-
-    // Index access for map & array
-    //assert_eq!(doc["bar"][1].as_f64().unwrap(), 2.0);
-
-    // Chained key/array access is checked and won't panic,
-    // return BadValue if they are not exist.
-    //assert!(doc["INVALID_KEY"][100].is_badvalue());
-
-    // Dump the YAML object
-    /*let mut out_str = String::new();
-    {
-        let mut emitter = YamlEmitter::new(&mut out_str);
-        emitter.dump(doc).unwrap(); // dump the YAML object to a String
+    // Debug support
+    /*
+    println!("{:?}", doc);
+    println!("{:?}", doc["programs"]["nginx"]);
+    for (key, value) in doc.iter() {
+        println!("{:?}, {:?}",key, value);
     }
-    println!("{}", out_str);
+    */
+
+//   println!("{:?}", doc[1]);
+
+    match doc {
+        &Yaml::Hash(ref a) => println!("{:?}", a),
+    /*
+        Real(a) => println!("{:?}", a),
+        Integer(&a) => println!("{:?}", a),
+        String(&a) => println!("{:?}", a),
+        Boolean(&a) => println!("{:?}", a),
+        Array(&a) => println!("{:?}", a),
+       */ 
+        /*
+        Alias(&a) => println!("{:?}", a),
+        Null => println!("null"),
+        BadValue => println!("badValue"),
+        */
+    //    Yaml::Real(&a) => println!("{:?}", a),
+//        Yaml::Array(&a) => println!("{:?}", a),
+        _ => println!("autre"),
+    }
+}
+
+fn cli() {
     loop {
         print!("task_master> ");
         io::stdout().flush().unwrap();
@@ -74,5 +96,15 @@ fn main()
 
         println!("You wrote: {}", guess);
     }
-    */
+}
+
+fn main()
+{
+       let args: Vec<String> = env::args().collect();
+    // println!("{:?}", args);
+    let (query, filename) = parse_argv(&args);
+    println!("{}, {}", query, filename);
+
+    parse_config_file(filename);
+    exec_command();
 }
