@@ -3,5 +3,7 @@ name = "task_master"
 version = "0.1.0"
 authors = ["vcombey"]
 
+[dependencies.linked-hash-map]
+git = "https://github.com/contain-rs/linked-hash-map"
 [dependencies.yaml-rust]
 git = "https://github.com/chyh1990/yaml-rust.git"

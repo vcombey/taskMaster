@@ -1,12 +1,18 @@
 [[package]]
 name = "linked-hash-map"
 version = "0.5.0"
+source = "git+https://github.com/contain-rs/linked-hash-map#0cdd2b5e59065b4e356b4892d36f1e5e74b20c2c"
+
+[[package]]
+name = "linked-hash-map"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "task_master"
 version = "0.1.0"
 dependencies = [
+ "linked-hash-map 0.5.0 (git+https://github.com/contain-rs/linked-hash-map)",
  "yaml-rust 0.4.0 (git+https://github.com/chyh1990/yaml-rust.git)",
 ]
 
@@ -19,5 +25,6 @@ dependencies = [
 ]
 
 [metadata]
+"checksum linked-hash-map 0.5.0 (git+https://github.com/contain-rs/linked-hash-map)" = "<none>"
 "checksum linked-hash-map 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2d2aab0478615bb586559b0114d94dd8eca4fdbb73b443adcb0d00b61692b4bf"
 "checksum yaml-rust 0.4.0 (git+https://github.com/chyh1990/yaml-rust.git)" = "<none>"

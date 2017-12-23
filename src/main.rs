@@ -11,15 +11,22 @@ use std::io::prelude::*;
 extern crate yaml_rust;
 #[allow(unused_imports)]
 use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
-
+#[allow(unused_imports)]
 use std::process::Command;
+//extern crate linked_hash_map;
+//use linked_hash_map::LinkedHashMap;
+
+
 
 fn exec_command() {
-    Command::new("./wait_and_print").spawn().unwrap();
+    
+    println!("{:?}", env::current_dir().unwrap());
+   /* Command::new("./wait_and_print").spawn().unwrap();
     Command::new("ls").arg("-l").spawn().unwrap();
     let mut child = Command::new("cat").spawn().unwrap();
-    
+
     child.wait().unwrap();
+    */
 }
 
 fn parse_argv(args: &[String]) -> (&str, &str)
@@ -32,7 +39,7 @@ fn parse_argv(args: &[String]) -> (&str, &str)
         panic!("unknown option");
     }
     let filename = &args[2];
-    
+
     (option, filename)
 }
 
@@ -44,7 +51,7 @@ fn parse_config_file(filename: &str)
 
     f.read_to_string(&mut contents)
         .expect("something went wrong reading the file");
-    
+
     println!("{}", contents);
 
     let docs = YamlLoader::load_from_str(&contents).unwrap();
@@ -53,36 +60,33 @@ fn parse_config_file(filename: &str)
     let doc = &docs[0];
 
 
-    println!("{:?}", doc);
-    // Debug support
-    /*
-    println!("{:?}", doc);
-    println!("{:?}", doc["programs"]["nginx"]);
-    for (key, value) in doc.iter() {
-        println!("{:?}, {:?}",key, value);
-    }
-    */
-
-//   println!("{:?}", doc[1]);
+    println!("{:#?}", doc);
+    //   println!("{:?}", doc[1]);
 
     match doc {
-        &Yaml::Hash(ref a) => println!("{:?}", a),
-    /*
-        Real(a) => println!("{:?}", a),
-        Integer(&a) => println!("{:?}", a),
-        String(&a) => println!("{:?}", a),
-        Boolean(&a) => println!("{:?}", a),
-        Array(&a) => println!("{:?}", a),
-       */ 
-        /*
-        Alias(&a) => println!("{:?}", a),
-        Null => println!("null"),
-        BadValue => println!("badValue"),
-        */
-    //    Yaml::Real(&a) => println!("{:?}", a),
-//        Yaml::Array(&a) => println!("{:?}", a),
+        &Yaml::Array(ref a) => println!("a is {:?}", a),
+        &Yaml::Hash(ref a) => {
+            println!("{:?}", a);
+            /*
+            for (name, yaml) in a.iter().collect() {
+                println!("name is : {:?}\n yaml is : {:?} ", name, yaml);
+            }
+            */
+        },
         _ => println!("autre"),
     }
+    if let Some(h) = doc.as_hash() {
+        println!("h is {:?}", h);
+    }
+    /*
+    let mut map = Yaml::Hash("lol");
+    map.insert(Yaml::from_str("lala"), Yaml::from_str("lolo"));
+    //map.insert(2, "b");
+    let h = Yaml::Hash(map);
+    for (name, yaml) in h.iter().collect() {
+        println!("name is : {:?} yaml is : {:?} ", name, yaml);
+    }
+    */
 }
 
 fn cli() {
@@ -100,11 +104,11 @@ fn cli() {
 
 fn main()
 {
-       let args: Vec<String> = env::args().collect();
+    let args: Vec<String> = env::args().collect();
     // println!("{:?}", args);
-    let (query, filename) = parse_argv(&args);
-    println!("{}, {}", query, filename);
+    let (option, filename) = parse_argv(&args);
+    println!("{}, {}", option, filename);
 
     parse_config_file(filename);
-    exec_command();
+        exec_command();
 }
