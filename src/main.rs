@@ -18,7 +18,7 @@ use std::process::Command;
 
 
 
-fn exec_command() {
+fn exec_command_test() {
     
     println!("{:?}", env::current_dir().unwrap());
    /* Command::new("./wait_and_print").spawn().unwrap();
@@ -29,7 +29,7 @@ fn exec_command() {
     */
 }
 
-fn parse_argv(args: &[String]) -> (&str, &str)
+fn parse_argv (args: &[String]) -> (&str, &str)
 {
     if args.len() < 3 {
         panic!("not enough arguments");
@@ -43,7 +43,22 @@ fn parse_argv(args: &[String]) -> (&str, &str)
     (option, filename)
 }
 
-fn parse_config_file(filename: &str)
+fn exec_command (name: &Yaml, config: &Yaml) {
+    //println!("name: {:#?} cmd: {:#?}", name, config);
+    //println!("{:#?}", config["cmd"]);
+    let cmd = &config["cmd"];
+    let working_dir = &config["workingdir"];
+    let av: Vec<&str> = cmd.as_str().unwrap().split(' ').collect();
+    //println!("{:#?}", av);
+    let mut child = Command::new(av[0])
+            .args(&av[1..])
+            .env("PWD", working_dir.as_str().unwrap())
+            .spawn()
+            .unwrap();
+    child.wait().unwrap();
+}
+
+fn parse_config_file (filename: &str)
 {
     let mut f = File::open(filename).expect("file not found");
 
@@ -55,38 +70,34 @@ fn parse_config_file(filename: &str)
     println!("{}", contents);
 
     let docs = YamlLoader::load_from_str(&contents).unwrap();
-
-    // Multi document support, doc is a yaml::Yaml
     let doc = &docs[0];
-
-
     println!("{:#?}", doc);
-    //   println!("{:?}", doc[1]);
 
-    match doc {
-        &Yaml::Array(ref a) => println!("a is {:?}", a),
-        &Yaml::Hash(ref a) => {
-            println!("{:?}", a);
-            /*
-            for (name, yaml) in a.iter().collect() {
-                println!("name is : {:?}\n yaml is : {:?} ", name, yaml);
-            }
-            */
-        },
-        _ => println!("autre"),
+    assert!(!doc["programs"].is_badvalue());
+    let x = &doc["programs"];
+    {
+        let hash = x.as_hash().unwrap();
+        println!("hash: {:#?}", hash);
+        for (name, cmd) in hash.iter() {
+            exec_command(name, cmd);
+        }
     }
-    if let Some(h) = doc.as_hash() {
-        println!("h is {:?}", h);
-    }
+
     /*
-    let mut map = Yaml::Hash("lol");
-    map.insert(Yaml::from_str("lala"), Yaml::from_str("lolo"));
-    //map.insert(2, "b");
-    let h = Yaml::Hash(map);
-    for (name, yaml) in h.iter().collect() {
-        println!("name is : {:?} yaml is : {:?} ", name, yaml);
-    }
-    */
+       if let Some(h) = doc.as_hash() {
+//println!("h[0] is {:#?}", h.0);
+println!("{:?}", h[&Yaml::from_str("programs")]);
+}
+*/
+/*
+   let mut map = Yaml::Hash("lol");
+   map.insert(Yaml::from_str("lala"), Yaml::from_str("lolo"));
+//map.insert(2, "b");
+let h = Yaml::Hash(map);
+for (name, yaml) in h.iter().collect() {
+println!("name is : {:?} yaml is : {:?} ", name, yaml);
+}
+*/
 }
 
 fn cli() {
@@ -110,5 +121,5 @@ fn main()
     println!("{}, {}", option, filename);
 
     parse_config_file(filename);
-        exec_command();
+    //    exec_command();
 }
