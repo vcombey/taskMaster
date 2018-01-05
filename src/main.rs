@@ -45,8 +45,7 @@ fn parse_argv (args: &[String]) -> (&str, &str)
 
 struct Process {
     command: Command,
-    binary: String,
-    argv: <Vec<String>>,
+    argv: String,
 }
     /*
     umask: i8,
@@ -64,10 +63,9 @@ struct Process {
     */
 
 impl Process {
-    fn new(argv: <Vec<String>>) -> Process {
+    fn new(argv: String) -> Process {
         Process {
-            command: Command::new(&binary),
-            binary, //
+            command: Command::new(argv.split(" ").next().unwrap()),
             argv,
         /*  umask: i8,
             workingdir: String, //
@@ -85,8 +83,9 @@ impl Process {
         }
     }
     fn add_args(&mut self) -> &mut Command {
-        if let Some(ref mut args) = self.args {
-            return self.command.args(args);
+        if self.argv.len() > 1 {
+            let args: Vec<&str> = self.argv.split(" ").collect();
+            return self.command.args(&args[1..]);
         }
         &mut self.command
     }
@@ -96,15 +95,18 @@ impl Process {
 }
 
 fn exec_command (name: &Yaml, config: &Yaml) {
-    println!("name: {:#?} cmd: {:#?}", name, config);
+    //println!("name: {:#?} cmd: {:#?}", name, config);
     //println!("{:#?}", config["cmd"]);
     let cmd = &config["cmd"];
     let working_dir = &config["workingdir"];
-    let mut av: Vec<String> = Vec::new();
-    cmd.as_str().unwrap().split(' ').map(|little_str| av.push(String::from(little_str)));
+    //let mut av: Vec<String> = Vec::new();
+    //cmd.as_str().unwrap().split(' ').map(|little_str| av.push(String::from(little_str)));
 
+    //println!("{:?}", av);
     //let av: Vec<&str> = cmd.as_str().unwrap().split(' ').collect();
-    let process = Process::new(av);
+    let mut process = Process::new(String::from(cmd.as_str().unwrap()));
+    process.add_args()
+           .spawn();
 //    let panic = &av.get(1..);
 //    println!("{:?}", panic);
 
