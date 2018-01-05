@@ -43,19 +43,81 @@ fn parse_argv (args: &[String]) -> (&str, &str)
     (option, filename)
 }
 
+struct Process {
+    command: Command,
+    binary: String,
+    argv: <Vec<String>>,
+}
+    /*
+    umask: i8,
+    workingdir: String,
+    autostart: bool,
+    autorestart: i8,
+    exitcodes: Vec<i8>,
+    startretries: i8,
+    starttime: i8,
+    stopsignal: i8,
+    stoptime: i8,
+    stdout: File,
+    stderr: File,
+    env: Option<Vec<(String, String)>>,
+    */
+
+impl Process {
+    fn new(argv: <Vec<String>>) -> Process {
+        Process {
+            command: Command::new(&binary),
+            binary, //
+            argv,
+        /*  umask: i8,
+            workingdir: String, //
+            stdout: File, //
+            stderr: File, //
+            env: Option<Vec<(String, String)>>, //
+            autostart: bool,
+            autorestart: i8,
+            exitcodes: Vec<i8>,
+            startretries: i8,
+            starttime: i8,
+            stopsignal: i8,
+            stoptime: i8,
+            */
+        }
+    }
+    fn add_args(&mut self) -> &mut Command {
+        if let Some(ref mut args) = self.args {
+            return self.command.args(args);
+        }
+        &mut self.command
+    }
+    fn spawn(&mut self) {
+        self.command.spawn();
+    }
+}
+
 fn exec_command (name: &Yaml, config: &Yaml) {
-    //println!("name: {:#?} cmd: {:#?}", name, config);
+    println!("name: {:#?} cmd: {:#?}", name, config);
     //println!("{:#?}", config["cmd"]);
     let cmd = &config["cmd"];
     let working_dir = &config["workingdir"];
-    let av: Vec<&str> = cmd.as_str().unwrap().split(' ').collect();
-    //println!("{:#?}", av);
-    let mut child = Command::new(av[0])
-            .args(&av[1..])
-            .env("PWD", working_dir.as_str().unwrap())
-            .spawn()
-            .unwrap();
+    let mut av: Vec<String> = Vec::new();
+    cmd.as_str().unwrap().split(' ').map(|little_str| av.push(String::from(little_str)));
+
+    //let av: Vec<&str> = cmd.as_str().unwrap().split(' ').collect();
+    let process = Process::new(av);
+//    let panic = &av.get(1..);
+//    println!("{:?}", panic);
+
+
+
+
+    /*let mut child = Command::new(av[0])
+        .args(&av[1..])
+        .env("PWD", working_dir.as_str().unwrap())
+        .spawn()
+        .unwrap();
     child.wait().unwrap();
+    */
 }
 
 fn parse_config_file (filename: &str)
