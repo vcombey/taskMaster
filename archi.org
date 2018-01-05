@@ -3,13 +3,16 @@
    NOTE : Every operation/option available on process when reading from the
    config file should also be available from the client.
 
-   1. Receive request from the client.
-	  - Reload config file, apply changes ONLY IF necessary
-   2. Read config file.
-   3. Spawn process
-   4. Despawn process
-   5. Fetch status of process
-   6. Communicate status of process with client.
+   - Receive request from the client.
+	 - Reload config file, apply changes ONLY IF necessary
+   - Read config file.
+   - Parse config file.
+   - Spawn multiple processes
+   - Despawn process
+   - Fetch status of process
+   - Communicate status of process with client.
 	  
 ** How
+
+   - Receive data structure
 * Client
