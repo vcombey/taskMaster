@@ -2,7 +2,7 @@
 ** What should the server be able to do ?
    NOTE : Every operation/option available on process when reading from the
    config file should also be available from the client.
-
+   
    - Receive request from the client.
 	 - Reload config file, apply changes ONLY IF necessary
    - Read config file.
@@ -11,8 +11,47 @@
    - Despawn process
    - Fetch status of process
    - Communicate status of process with client.
-	  
+	 
 ** How
-
+   
    - Receive data structure
+	 
+** Structure de donne
+
+   // Service
+   Hash(Service_name: String, Hash(Process_name: String, Process)
+   
+   // Process Struct
+	binary: String
+	args: Vec<String>
+	umask: i8
+	workingdir: <String>
+	autostart: bool
+	autorestart: i8
+	exitcodes: Vec<i8>
+	startretries: i8
+	starttime: i8 // Time to wait before we can consider the process launched
+	stopsignal: i8 // USR1
+	stoptime: i8 // 10
+	stdout: std::Fs:File ///tmp/vgsworker.stdout
+	stderr: std::Fs:File ///tmp/vgsworker.stderr
+	env: Vec<(key, value)>
+	
+** Traits method
+    // Impl Service
+	mimic Process
+
+	// Impl Process
+	fn spwan
+	fn despawn
+	fn restart
+	
+	// Trais for process
+	display
+
+
+	// Pool de thread qui attend et qui est cree. 
+
+   
+restart program
 * Client
