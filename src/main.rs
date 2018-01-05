@@ -46,11 +46,11 @@ fn parse_argv (args: &[String]) -> (&str, &str)
 struct Process {
     command: Command,
     argv: String,
+    workingdir: Option<String>,
+    autostart: bool,
 }
     /*
     umask: i8,
-    workingdir: String,
-    autostart: bool,
     autorestart: i8,
     exitcodes: Vec<i8>,
     startretries: i8,
@@ -63,31 +63,44 @@ struct Process {
     */
 
 impl Process {
-    fn new(argv: String) -> Process {
+    fn new(argv: String, workingdir: Option<&str>, autostart: Option<bool>) -> Process {
         Process {
             command: Command::new(argv.split(" ").next().unwrap()),
             argv,
-        /*  umask: i8,
-            workingdir: String, //
-            stdout: File, //
-            stderr: File, //
-            env: Option<Vec<(String, String)>>, //
-            autostart: bool,
-            autorestart: i8,
-            exitcodes: Vec<i8>,
-            startretries: i8,
-            starttime: i8,
-            stopsignal: i8,
-            stoptime: i8,
-            */
+            workingdir: match workingdir {
+                Some(slice) => Some(String::from(slice)),
+                None => None,
+            },
+            autostart: match autostart {
+                Some(value) => value,
+                None => true,
+            },
+            /*
+                umask: i8,
+               stdout: File, //
+               stderr: File, //
+               env: Option<Vec<(String, String)>>, //
+               autorestart: i8,
+               exitcodes: Vec<i8>,
+               startretries: i8,
+               starttime: i8,
+               stopsignal: i8,
+               stoptime: i8,
+               */
         }
     }
-    fn add_args(&mut self) -> &mut Command {
+    fn add_workingdir(mut self) -> Self {
+        if let Some(ref string) = self.workingdir {
+            self.command.env("PWD", string);
+        }
+        self
+    }
+    fn add_args(mut self) -> Self {
         if self.argv.len() > 1 {
             let args: Vec<&str> = self.argv.split(" ").collect();
-            return self.command.args(&args[1..]);
+            self.command.args(&args[1..]);
         }
-        &mut self.command
+        self
     }
     fn spawn(&mut self) {
         self.command.spawn();
@@ -97,29 +110,31 @@ impl Process {
 fn exec_command (name: &Yaml, config: &Yaml) {
     //println!("name: {:#?} cmd: {:#?}", name, config);
     //println!("{:#?}", config["cmd"]);
-    let cmd = &config["cmd"];
-    let working_dir = &config["workingdir"];
+    let cmd = (&config["cmd"]).as_str().unwrap();
+
+    let working_dir = (&config["workingdir"]).as_str();
+    let autostart = (&config["autostart"]).as_bool();
+
+    println!("working dir {:?}", working_dir);
+
+    let mut process = Process::new(String::from(cmd), working_dir, autostart);
+    process.add_args()
+           .add_workingdir()
+           .spawn();
+
+
     //let mut av: Vec<String> = Vec::new();
     //cmd.as_str().unwrap().split(' ').map(|little_str| av.push(String::from(little_str)));
-
-    //println!("{:?}", av);
     //let av: Vec<&str> = cmd.as_str().unwrap().split(' ').collect();
-    let mut process = Process::new(String::from(cmd.as_str().unwrap()));
-    process.add_args()
-           .spawn();
-//    let panic = &av.get(1..);
-//    println!("{:?}", panic);
-
-
 
 
     /*let mut child = Command::new(av[0])
-        .args(&av[1..])
-        .env("PWD", working_dir.as_str().unwrap())
-        .spawn()
-        .unwrap();
-    child.wait().unwrap();
-    */
+      .args(&av[1..])
+      .env("PWD", working_dir.as_str().unwrap())
+      .spawn()
+      .unwrap();
+      child.wait().unwrap();
+      */
 }
 
 fn parse_config_file (filename: &str)
@@ -131,17 +146,17 @@ fn parse_config_file (filename: &str)
     f.read_to_string(&mut contents)
         .expect("something went wrong reading the file");
 
-    println!("{}", contents);
+    //println!("{}", contents);
 
     let docs = YamlLoader::load_from_str(&contents).unwrap();
     let doc = &docs[0];
-    println!("{:#?}", doc);
+    //println!("{:#?}", doc);
 
     assert!(!doc["programs"].is_badvalue());
     let x = &doc["programs"];
     {
         let hash = x.as_hash().unwrap();
-        println!("hash: {:#?}", hash);
+        //   println!("hash: {:#?}", hash);
         for (name, cmd) in hash.iter() {
             exec_command(name, cmd);
         }
