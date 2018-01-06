@@ -113,7 +113,7 @@ impl Process {
                 Some(i) => i,
                 None => 0700,
             },
-            autorestart: match autorestart {
+            autorestart: match autorestart { //TODO: voir ce que c'est
                 Some(i) => i,
                 None => 0,
             },
@@ -123,11 +123,11 @@ impl Process {
             },
             stopsignal: match stopsignal {
                 Some(i) => i,
-                None => 0,
+                None => 0, //TODO: mettre TERM,
             },
             stoptime:  match stoptime {
                 Some(i) => i,
-                None => 0,
+                None => 10,
             },
             numprocs:  match numprocs {
                 Some(i) => i,
