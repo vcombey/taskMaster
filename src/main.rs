@@ -43,6 +43,7 @@ fn parse_argv (args: &[String]) -> (&str, &str)
     (option, filename)
 }
 
+#[derive(Debug)]
 struct Process {
     command: Command,
     argv: String,
@@ -51,16 +52,14 @@ struct Process {
     env: Option<Vec<(String, String)>>,
     stdout: Option<String>,
     stderr: Option<String>,
+    exitcodes: Option<Vec<i64>>,
+    startretries: i64,
+    umask: i64,
+    autorestart: i64,
+    starttime: i64,
+    stopsignal: i64,
+    stoptime: i64,
 }
-    /*
-    umask: i8,
-    autorestart: i8,
-    exitcodes: Vec<i8>,
-    startretries: i8,
-    starttime: i8,
-    stopsignal: i8,
-    stoptime: i8,
-    */
 
 impl Process {
     fn new(argv: String, 
@@ -68,7 +67,14 @@ impl Process {
            autostart: Option<bool>,
            env: Option<Vec<(String, String)>>,
            stdout: Option<&str>,
-           stderr: Option<&str>
+           stderr: Option<&str>,
+           exitcodes: Option<Vec<i64>>,
+           startretries: Option<i64>,
+           umask: Option<i64>,
+           autorestart: Option<i64>,
+           starttime: Option<i64>,
+           stopsignal: Option<i64>,
+           stoptime: Option<i64>
           ) -> Process {
         Process {
             command: Command::new(argv.split(" ").next().unwrap()),
@@ -90,16 +96,32 @@ impl Process {
                 Some(slice) => Some(String::from(slice)),
                 None => None,
             },
+            exitcodes,
+            startretries: match startretries {
+                Some(i) => i,
+                None => 0,
+            },
+            umask: match umask {
+                Some(i) => i,
+                None => 0,
+            },
+            autorestart: match autorestart {
+                Some(i) => i,
+                None => 0,
+            },
+            starttime:  match starttime {
+                Some(i) => i,
+                None => 0,
+            },
+            stopsignal: match stopsignal {
+                Some(i) => i,
+                None => 0,
+            },
+            stoptime:  match stoptime {
+                Some(i) => i,
+                None => 0,
+            },
             /*
-               umask: i8,
-               stderr: File, //
-               env: Option<Vec<(String, String)>>, //
-               autorestart: i8,
-               exitcodes: Vec<i8>,
-               startretries: i8,
-               starttime: i8,
-               stopsignal: i8,
-               stoptime: i8,
                */
         }
     }
@@ -167,23 +189,43 @@ fn exec_command (name: &Yaml, config: &Yaml) {
     let stdout = (&config["stdout"]).as_str();
     let stderr = (&config["stderr"]).as_str();
 
-   //println!("stdout: {:#?}", stdout);
-
+    let exitcodes =  match (&config["exitcodes"]).as_vec() {
+        Some(v) => Some(v.iter().map(|a| {
+                a.as_i64().unwrap()})
+            .collect()),
+        None => match (&config["exitcodes"]).as_i64() {
+            Some(i) => Some(vec![i]),
+            None => None,
+        },
+    };
+    let startretries = (&config["startretries"]).as_i64();
+    let umask = (&config["umask"]).as_i64();
+    let autorestart = (&config["autorestart"]).as_i64();
+    let starttime = (&config["starttime"]).as_i64();
+    let stopsignal= (&config["stopsignal"]).as_i64();
+    let stoptime = (&config["stoptime"]).as_i64();
 
    let process = Process::new(String::from(cmd),
-                                   working_dir,
-                                   autostart,
-                                   env,
-                                   stdout,
-                                   stderr
-                                   );
-    process.add_args()
-        .add_workingdir()
-        .add_env()
-        .add_stdout()
-        .add_stderr()
-        .spawn();
-
+                              working_dir,
+                              autostart,
+                              env,
+                              stdout,
+                              stderr,
+                              exitcodes,
+                              startretries,
+                              umask,
+                              autorestart,
+                              starttime,
+                              stopsignal,
+                              stoptime
+                             );
+   println!("process is {:#?}", process);
+   process.add_args()
+          .add_workingdir()
+          .add_env()
+          .add_stdout()
+          .add_stderr()
+          .spawn();
 
     //let mut av: Vec<String> = Vec::new();
     //cmd.as_str().unwrap().split(' ').map(|little_str| av.push(String::from(little_str)));
