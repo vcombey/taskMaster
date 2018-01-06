@@ -45,6 +45,7 @@ fn parse_argv (args: &[String]) -> (&str, &str)
 
 #[derive(Debug)]
 struct Process {
+    name: String,
     command: Command,
     argv: String,
     workingdir: Option<String>,
@@ -62,7 +63,8 @@ struct Process {
 }
 
 impl Process {
-    fn new(argv: String, 
+    fn new(name: String,
+           argv: String, 
            workingdir: Option<&str>,
            autostart: Option<bool>,
            env: Option<Vec<(String, String)>>,
@@ -77,6 +79,7 @@ impl Process {
            stoptime: Option<i64>
           ) -> Process {
         Process {
+            name, 
             command: Command::new(argv.split(" ").next().unwrap()),
             argv,
             workingdir: match workingdir {
@@ -121,8 +124,6 @@ impl Process {
                 Some(i) => i,
                 None => 0,
             },
-            /*
-               */
         }
     }
     fn add_workingdir(mut self) -> Self {
@@ -157,7 +158,6 @@ impl Process {
         self
     }
     fn add_env(mut self) -> Self {
-        //self.command.envs(self.env.unwrap());
         if let Some(ref vect) = self.env {
             let v: Vec<(String, String)> = vect.to_vec();
             self.command.envs(v);
@@ -170,8 +170,7 @@ impl Process {
 }
 
 fn exec_command (name: &Yaml, config: &Yaml) {
-    //println!("name: {:#?} cmd: {:#?}", name, config);
-    //println!("{:#?}", config["cmd"]);
+    let name = name.as_str().unwrap();
     let cmd = (&config["cmd"]).as_str().unwrap();
 
     let working_dir = (&config["workingdir"]).as_str();
@@ -205,7 +204,8 @@ fn exec_command (name: &Yaml, config: &Yaml) {
     let stopsignal= (&config["stopsignal"]).as_i64();
     let stoptime = (&config["stoptime"]).as_i64();
 
-   let process = Process::new(String::from(cmd),
+   let process = Process::new(String::from(name),
+                              String::from(cmd),
                               working_dir,
                               autostart,
                               env,
@@ -227,18 +227,6 @@ fn exec_command (name: &Yaml, config: &Yaml) {
           .add_stderr()
           .spawn();
 
-    //let mut av: Vec<String> = Vec::new();
-    //cmd.as_str().unwrap().split(' ').map(|little_str| av.push(String::from(little_str)));
-    //let av: Vec<&str> = cmd.as_str().unwrap().split(' ').collect();
-
-
-    /*let mut child = Command::new(av[0])
-      .args(&av[1..])
-      .env("PWD", working_dir.as_str().unwrap())
-      .spawn()
-      .unwrap();
-      child.wait().unwrap();
-      */
 }
 
 fn parse_config_file (filename: &str)
@@ -250,11 +238,8 @@ fn parse_config_file (filename: &str)
     f.read_to_string(&mut contents)
         .expect("something went wrong reading the file");
 
-    //println!("{}", contents);
-
     let docs = YamlLoader::load_from_str(&contents).unwrap();
     let doc = &docs[0];
-    //println!("{:#?}", doc);
 
     assert!(!doc["programs"].is_badvalue());
     let x = &doc["programs"];
@@ -265,22 +250,6 @@ fn parse_config_file (filename: &str)
             exec_command(name, cmd);
         }
     }
-
-    /*
-       if let Some(h) = doc.as_hash() {
-//println!("h[0] is {:#?}", h.0);
-println!("{:?}", h[&Yaml::from_str("programs")]);
-}
-*/
-/*
-   let mut map = Yaml::Hash("lol");
-   map.insert(Yaml::from_str("lala"), Yaml::from_str("lolo"));
-//map.insert(2, "b");
-let h = Yaml::Hash(map);
-for (name, yaml) in h.iter().collect() {
-println!("name is : {:?} yaml is : {:?} ", name, yaml);
-}
-*/
 }
 
 fn cli() {
