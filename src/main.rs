@@ -49,6 +49,8 @@ struct Process {
     workingdir: Option<String>,
     autostart: bool,
     env: Option<Vec<(String, String)>>,
+    stdout: Option<String>,
+    stderr: Option<String>,
 }
     /*
     umask: i8,
@@ -58,15 +60,15 @@ struct Process {
     starttime: i8,
     stopsignal: i8,
     stoptime: i8,
-    stdout: File,
-    stderr: File,
     */
 
 impl Process {
     fn new(argv: String, 
            workingdir: Option<&str>,
            autostart: Option<bool>,
-           env: Option<Vec<(String, String)>>
+           env: Option<Vec<(String, String)>>,
+           stdout: Option<&str>,
+           stderr: Option<&str>
           ) -> Process {
         Process {
             command: Command::new(argv.split(" ").next().unwrap()),
@@ -80,9 +82,16 @@ impl Process {
                 None => true,
             },
             env,
+            stdout: match stdout {
+                Some(slice) => Some(String::from(slice)),
+                None => None,
+            },
+            stderr: match stderr {
+                Some(slice) => Some(String::from(slice)),
+                None => None,
+            },
             /*
                umask: i8,
-               stdout: File, //
                stderr: File, //
                env: Option<Vec<(String, String)>>, //
                autorestart: i8,
@@ -104,6 +113,24 @@ impl Process {
         if self.argv.len() > 1 {
             let args: Vec<&str> = self.argv.split(" ").collect();
             self.command.args(&args[1..]);
+        }
+        self
+    }
+    fn add_stdout(mut self) -> Self {
+        if let Some(ref string) = self.stdout {
+            match File::open(string) {
+                Ok(file) => {self.command.stdout(file);},
+                Err(e) => println!("error{:?}", e),
+            }
+        }
+        self
+    }
+    fn add_stderr(mut self) -> Self {
+        if let Some(ref string) = self.stderr {
+            match File::open(string) {
+                Ok(file) => {self.command.stderr(file);},
+                Err(e) => println!("error{:?}", e),
+            }
         }
         self
     }
@@ -131,24 +158,30 @@ fn exec_command (name: &Yaml, config: &Yaml) {
         Some(hash) => { Some(hash.iter()
                              .map(|(name, cmd)| {
                                  (String::from(name.as_str().unwrap()), 
-                                  String::from(cmd.as_str().unwrap())) //TODO: gerer les nombre
-                             })
+                                  String::from(cmd.as_str().unwrap()))
+                             }) //TODO: gerer les nombre
                              .collect())
         },
         None => None,
     };
+    let stdout = (&config["stdout"]).as_str();
+    let stderr = (&config["stderr"]).as_str();
 
-    //   println!("hash: {:#?}", hash);
+   //println!("stdout: {:#?}", stdout);
 
 
-    let mut process = Process::new(String::from(cmd),
+   let process = Process::new(String::from(cmd),
                                    working_dir,
                                    autostart,
-                                   env
+                                   env,
+                                   stdout,
+                                   stderr
                                    );
     process.add_args()
         .add_workingdir()
         .add_env()
+        .add_stdout()
+        .add_stderr()
         .spawn();
 
 
