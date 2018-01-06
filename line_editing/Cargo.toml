@@ -1,0 +1,8 @@
+[package]
+name = "line_editing"
+version = "0.1.0"
+authors = ["vcombey"]
+
+[dependencies]
+copperline = "*"
+liner = "*"
