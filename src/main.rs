@@ -173,7 +173,11 @@ impl Process {
         }
         self
     }
-    fn spawn(&mut self) {
+    fn spawn(mut self) -> Self {
+        self.command.spawn();
+        self
+    }
+    fn wait(&mut self) {
         self.command.spawn();
     }
 }
@@ -235,7 +239,8 @@ fn exec_command (name: &Yaml, config: &Yaml) {
           .add_env()
           .add_stdout()
           .add_stderr()
-          .spawn();
+          .spawn()
+          .wait();
 
 }
 
