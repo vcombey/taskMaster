@@ -13,17 +13,8 @@ extern crate yaml_rust;
 use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
 #[allow(unused_imports)]
 use std::process::Command;
-
-fn exec_command_test() {
-    
-    println!("{:?}", env::current_dir().unwrap());
-   /* Command::new("./wait_and_print").spawn().unwrap();
-    Command::new("ls").arg("-l").spawn().unwrap();
-    let mut child = Command::new("cat").spawn().unwrap();
-
-    child.wait().unwrap();
-    */
-}
+use std::time::{Duration, Instant};
+use std::process::Child;
 
 fn parse_argv (args: &[String]) -> (&str, &str)
 {
@@ -53,9 +44,9 @@ struct Process {
     startretries: i64,
     umask: i64,
     autorestart: i64,
-    starttime: i64,
+    starttime: Duration,
     stopsignal: i64,
-    stoptime: i64,
+    stoptime: Duration,
     numprocs: i64,
 }
 
@@ -114,16 +105,16 @@ impl Process {
                 None => 0,
             },
             starttime:  match starttime {
-                Some(i) => i,
-                None => 1,
+                Some(i) => Duration::from_secs(i as u64),
+                None => Duration::from_secs(1),
             },
             stopsignal: match stopsignal {
                 Some(i) => i,
                 None => 0, //TODO: mettre TERM,
             },
             stoptime:  match stoptime {
-                Some(i) => i,
-                None => 10,
+                Some(i) => Duration::from_secs(i as u64),
+                None => Duration::from_secs(10),
             },
             numprocs:  match numprocs {
                 Some(i) => i,
@@ -170,21 +161,31 @@ impl Process {
         self
     }
     fn spawn(mut self) -> Self {
-        self.command.spawn();
+        let now = Instant::now();
+        let child = self.command.spawn();
+        match child {
+            Ok(mut child) => {
+                println!("child {} launched with pid: {:?}", self.name, child.id());
+                child.wait();
+                let nownow = Instant::now();
+                let duree = nownow.duration_since(now);
+                println!("duree: {:?}", duree);
+                if duree < self.starttime {
+                    println!("must be restart");
+                }
+            }
+            Err(e) => { println!("error {:?}", e);
+            }
+        }
         self
     }
-    fn wait(mut self) -> Self {
-        self.command.spawn();
-        self
-    }
-    fn start(self) -> Self {
+    fn start(self) {
         self.add_args()
             .add_workingdir()
             .add_env()
             .add_stdout()
             .add_stderr()
-            .spawn()
-            .wait()
+            .spawn();
     }
 }
 
@@ -241,8 +242,7 @@ fn exec_command (name: &Yaml, config: &Yaml) {
                                   );
     println!("process is {:#?}", process);
 
-    process = process.start();
-    process.spawn();
+    process.start();
 
 }
 
