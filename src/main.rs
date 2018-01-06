@@ -48,6 +48,7 @@ struct Process {
     argv: String,
     workingdir: Option<String>,
     autostart: bool,
+    env: Option<Vec<(String, String)>>,
 }
     /*
     umask: i8,
@@ -59,11 +60,14 @@ struct Process {
     stoptime: i8,
     stdout: File,
     stderr: File,
-    env: Option<Vec<(String, String)>>,
     */
 
 impl Process {
-    fn new(argv: String, workingdir: Option<&str>, autostart: Option<bool>) -> Process {
+    fn new(argv: String, 
+           workingdir: Option<&str>,
+           autostart: Option<bool>,
+           env: Option<Vec<(String, String)>>
+          ) -> Process {
         Process {
             command: Command::new(argv.split(" ").next().unwrap()),
             argv,
@@ -75,8 +79,9 @@ impl Process {
                 Some(value) => value,
                 None => true,
             },
+            env,
             /*
-                umask: i8,
+               umask: i8,
                stdout: File, //
                stderr: File, //
                env: Option<Vec<(String, String)>>, //
@@ -102,6 +107,14 @@ impl Process {
         }
         self
     }
+    fn add_env(mut self) -> Self {
+        //self.command.envs(self.env.unwrap());
+        if let Some(ref vect) = self.env {
+            let v: Vec<(String, String)> = vect.to_vec();
+            self.command.envs(v);
+        }
+        self
+    }
     fn spawn(&mut self) {
         self.command.spawn();
     }
@@ -114,13 +127,29 @@ fn exec_command (name: &Yaml, config: &Yaml) {
 
     let working_dir = (&config["workingdir"]).as_str();
     let autostart = (&config["autostart"]).as_bool();
+    let env: Option<Vec<(String, String)>> = match (&config["env"]).as_hash() {
+        Some(hash) => { Some(hash.iter()
+                             .map(|(name, cmd)| {
+                                 (String::from(name.as_str().unwrap()), 
+                                  String::from(cmd.as_str().unwrap())) //TODO: gerer les nombre
+                             })
+                             .collect())
+        },
+        None => None,
+    };
 
-    println!("working dir {:?}", working_dir);
+    //   println!("hash: {:#?}", hash);
 
-    let mut process = Process::new(String::from(cmd), working_dir, autostart);
+
+    let mut process = Process::new(String::from(cmd),
+                                   working_dir,
+                                   autostart,
+                                   env
+                                   );
     process.add_args()
-           .add_workingdir()
-           .spawn();
+        .add_workingdir()
+        .add_env()
+        .spawn();
 
 
     //let mut av: Vec<String> = Vec::new();
