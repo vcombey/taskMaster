@@ -13,10 +13,6 @@ extern crate yaml_rust;
 use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
 #[allow(unused_imports)]
 use std::process::Command;
-//extern crate linked_hash_map;
-//use linked_hash_map::LinkedHashMap;
-
-
 
 fn exec_command_test() {
     
@@ -177,8 +173,18 @@ impl Process {
         self.command.spawn();
         self
     }
-    fn wait(&mut self) {
+    fn wait(mut self) -> Self {
         self.command.spawn();
+        self
+    }
+    fn start(self) -> Self {
+        self.add_args()
+            .add_workingdir()
+            .add_env()
+            .add_stdout()
+            .add_stderr()
+            .spawn()
+            .wait()
     }
 }
 
@@ -202,8 +208,8 @@ fn exec_command (name: &Yaml, config: &Yaml) {
 
     let exitcodes =  match (&config["exitcodes"]).as_vec() {
         Some(v) => Some(v.iter().map(|a| {
-                a.as_i64().unwrap()})
-            .collect()),
+            a.as_i64().unwrap()})
+                        .collect()),
         None => match (&config["exitcodes"]).as_i64() {
             Some(i) => Some(vec![i]),
             None => None,
@@ -217,46 +223,42 @@ fn exec_command (name: &Yaml, config: &Yaml) {
     let stoptime = (&config["stoptime"]).as_i64();
     let numprocs = (&config["numprocs"]).as_i64();
 
-   let process = Process::new(String::from(name),
-                              String::from(cmd),
-                              working_dir,
-                              autostart,
-                              env,
-                              stdout,
-                              stderr,
-                              exitcodes,
-                              startretries,
-                              umask,
-                              autorestart,
-                              starttime,
-                              stopsignal,
-                              stoptime,
-                              numprocs
-                             );
-   println!("process is {:#?}", process);
-   process.add_args()
-          .add_workingdir()
-          .add_env()
-          .add_stdout()
-          .add_stderr()
-          .spawn()
-          .wait();
+    let mut process = Process::new(String::from(name),
+                                   String::from(cmd),
+                                   working_dir,
+                                   autostart,
+                                   env,
+                                   stdout,
+                                   stderr,
+                                   exitcodes,
+                                   startretries,
+                                   umask,
+                                   autorestart,
+                                   starttime,
+                                   stopsignal,
+                                   stoptime,
+                                   numprocs
+                                  );
+    println!("process is {:#?}", process);
+
+    process = process.start();
+    process.spawn();
 
 }
 
 fn parse_config_file (filename: &str)
 {
-    let mut f = File::open(filename).expect("file not found");
+    let mut f = File::open(filename).unwrap();
 
     let mut contents = String::new();
 
-    f.read_to_string(&mut contents)
-        .expect("something went wrong reading the file");
+    f.read_to_string(&mut contents).unwrap();
 
     let docs = YamlLoader::load_from_str(&contents).unwrap();
     let doc = &docs[0];
 
     assert!(!doc["programs"].is_badvalue());
+
     let x = &doc["programs"];
     {
         let hash = x.as_hash().unwrap();
