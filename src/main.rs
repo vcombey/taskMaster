@@ -53,13 +53,14 @@ struct Process {
     env: Option<Vec<(String, String)>>,
     stdout: Option<String>,
     stderr: Option<String>,
-    exitcodes: Option<Vec<i64>>,
+    exitcodes: Vec<i64>,
     startretries: i64,
     umask: i64,
     autorestart: i64,
     starttime: i64,
     stopsignal: i64,
     stoptime: i64,
+    numprocs: i64,
 }
 
 impl Process {
@@ -76,7 +77,8 @@ impl Process {
            autorestart: Option<i64>,
            starttime: Option<i64>,
            stopsignal: Option<i64>,
-           stoptime: Option<i64>
+           stoptime: Option<i64>,
+           numprocs: Option<i64>
           ) -> Process {
         Process {
             name, 
@@ -99,14 +101,17 @@ impl Process {
                 Some(slice) => Some(String::from(slice)),
                 None => None,
             },
-            exitcodes,
+            exitcodes: match exitcodes {
+                Some(v) => v,
+                None => vec![1, 2],
+            },
             startretries: match startretries {
                 Some(i) => i,
-                None => 0,
+                None => 3,
             },
             umask: match umask {
                 Some(i) => i,
-                None => 0,
+                None => 0700,
             },
             autorestart: match autorestart {
                 Some(i) => i,
@@ -114,7 +119,7 @@ impl Process {
             },
             starttime:  match starttime {
                 Some(i) => i,
-                None => 0,
+                None => 1,
             },
             stopsignal: match stopsignal {
                 Some(i) => i,
@@ -123,6 +128,10 @@ impl Process {
             stoptime:  match stoptime {
                 Some(i) => i,
                 None => 0,
+            },
+            numprocs:  match numprocs {
+                Some(i) => i,
+                None => 1,
             },
         }
     }
@@ -172,7 +181,6 @@ impl Process {
 fn exec_command (name: &Yaml, config: &Yaml) {
     let name = name.as_str().unwrap();
     let cmd = (&config["cmd"]).as_str().unwrap();
-
     let working_dir = (&config["workingdir"]).as_str();
     let autostart = (&config["autostart"]).as_bool();
     let env: Option<Vec<(String, String)>> = match (&config["env"]).as_hash() {
@@ -203,6 +211,7 @@ fn exec_command (name: &Yaml, config: &Yaml) {
     let starttime = (&config["starttime"]).as_i64();
     let stopsignal= (&config["stopsignal"]).as_i64();
     let stoptime = (&config["stoptime"]).as_i64();
+    let numprocs = (&config["numprocs"]).as_i64();
 
    let process = Process::new(String::from(name),
                               String::from(cmd),
@@ -217,7 +226,8 @@ fn exec_command (name: &Yaml, config: &Yaml) {
                               autorestart,
                               starttime,
                               stopsignal,
-                              stoptime
+                              stoptime,
+                              numprocs
                              );
    println!("process is {:#?}", process);
    process.add_args()
