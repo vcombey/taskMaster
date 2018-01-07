@@ -1,0 +1,1 @@
+/home/ade-sede/projects/taskMaster/serde_test/target/debug/client-c00faf4edfab0bbb: /home/ade-sede/projects/taskMaster/serde_test/src/bin/client.rs /home/ade-sede/projects/taskMaster/serde_test/src/lib.rs
