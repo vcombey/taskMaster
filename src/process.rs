@@ -219,11 +219,11 @@ impl Process {
         self
     }
 
-    pub fn spawn(mut self) -> (Self, Result<Child, super::std::io::Error>) {
+    pub fn spawn(mut self) -> (Self, Result<Child, super::std::io::Error>, Instant) {
         let child = self.command.spawn();
-        (self, child)
+        (self, child, Instant::now())
     }
-    pub fn start(self) -> (Self, Result<Child, super::std::io::Error>) {
+    pub fn start(self) -> (Self, Result<Child, super::std::io::Error>, Instant) {
         self.add_args()
             .add_workingdir()
             .add_env()
@@ -236,37 +236,54 @@ impl Process {
 pub fn execute_process(process: Process) {
     //println!("process is {:#?}", process);
 
-    fn aux(process: Process, nb_try: u64) {
+    fn aux(process: Process, nb_try: u64) -> Process {
         //println!("nb_try {}, startretries {}", nb_try, process.startretries);
         if nb_try > process.config.startretries {
             println!("gave up: {} entered FATAL state, too many start retries too quickly",
                      process.config.name);
-            return ;
+            return process;
         }
-        let (process, child) = process.start();
-        let now = Instant::now();
-        match child {
-            Ok(mut child) => {
-                println!("INFO spawned: '{}' with pid {:?}", process.config.name, child.id());
-                let exit_status = child.wait().unwrap();
-                let nownow = Instant::now();
-                let duree = nownow.duration_since(now);
-                //println!("duree: {:?}", duree);
-                let exit_status_code = exit_status.code().unwrap();
-                if duree < process.config.starttime || !process.config.exitcodes.contains(&(exit_status_code as i64)) {
-                    println!("INFO exited: '{}' (exit status {}; not expected)", 
-                             process.config.name, 
-                             exit_status_code);
-                    return aux(process, nb_try + 1);
-                } else {
-                    println!("INFO exited: '{}' (exit status {}; expected)", 
-                             process.config.name, 
-                             exit_status_code);
+        let (process, mut child, now) = process.start();
+        loop {
+            match &mut child {
+                &mut Ok(ref mut child) => {
+                    match child.try_wait() {
+                        Ok(Some(exit_status)) => {
+                            println!("INFO spawned: '{}' with pid {:?}", process.config.name, child.id());
+                            let nownow = Instant::now();
+                            let duree = nownow.duration_since(now);
+                            //println!("duree: {:?}", duree);
+                            let exit_status_code = exit_status.code().unwrap();
+                            if duree < process.config.starttime || !process.config.exitcodes.contains(&(exit_status_code as i64)) {
+                                println!("INFO exited: '{}' (exit status {}; not expected)", 
+                                         process.config.name, 
+                                         exit_status_code);
+                                return aux(process, nb_try + 1);
+                            } else {
+                                println!("INFO exited: '{}' (exit status {}; expected)", 
+                                         process.config.name, 
+                                         exit_status_code);
+                            }
+                            return process;
+                        },
+                        Ok(None) => {
+                            continue ;
+                        }
+                        Err(e) => println!("error attempting to wait: {}", e),
+                    }
                 }
-            }
-            Err(e) => { println!("error {:?}", e);
+                &mut Err(ref mut e) => { println!("error {:?}", e);
+                }
             }
         }
     }
-    aux(process, 0);
+    let process = aux(process, 0);
+    loop {
+        match process.receiver.recv() {
+            Ok(cmd) => println!("INFO process '{}' receive {:?}", process.config.name, cmd),
+            Err(e) => println!("error {}", e),
+        }
+
+    }
+
 }

@@ -66,11 +66,12 @@ fn launch_config(filename: &str) -> HashMap<String,Config> {
 }
 
 use std::sync::mpsc::channel;
+use std::sync::mpsc::Sender;
 use std::thread;
 use task_master::cmd;
 
 fn lauch_processes(map: HashMap<String,Config>) {
-    let mut threads: Vec<thread::JoinHandle<()>> = Vec::new();
+    let mut threads: Vec<(thread::JoinHandle<()>, Sender<cmd::Cmd>)> = Vec::new();
     for (key, value) in map.iter() {
         let (sender, receiver) = channel();
         let clone_value = value.clone();
@@ -78,9 +79,9 @@ fn lauch_processes(map: HashMap<String,Config>) {
             execute_process(Process::new(clone_value, receiver));
         });
         sender.send(cmd::Cmd::STOP);
-        threads.push(handle);
+        threads.push((handle, sender));
     }
-    for handle in threads {
+    for (handle, sender) in threads {
         handle.join();
     }
 }
