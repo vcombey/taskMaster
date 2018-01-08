@@ -1,24 +1,19 @@
 use std::time::{Duration, Instant};
-use std::process::Command;
-use std::fs::File;
 #[allow(unused_imports)]
 use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
-#[allow(unused_imports)]
-use std::process::Child;
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 enum Autorestart {
     TRUE,
     FALSE,
     UNEXPECTED,
 }
 
-#[derive(Debug)]
-pub struct Process {
-    /// The Process struct represents all the informations we want
+#[derive(Debug,Clone)]
+pub struct Config {
+    /// The Config struct represents all the informations we want
     /// to have about a single process we are supervising.
     name: String,
-    command: Command,
     argv: String,
     workingdir: Option<String>,
     autostart: bool,
@@ -36,7 +31,7 @@ pub struct Process {
 }
 
 
-impl Process {
+impl Config {
     pub fn new(name: String,
                argv: String, 
                workingdir: Option<&str>,
@@ -52,13 +47,12 @@ impl Process {
                stopsignal: Option<i64>,
                stoptime: Option<i64>,
                numprocs: Option<i64>
-    ) -> Process {
-        /// Function to generate a new instance of a Process strct.
+              ) -> Config {
+        /// Function to generate a new instance of a Config strct.
         /// Only mandatory arguments are name and command.
         /// Other arguments can be skipped by giving `None' 
-        Process {
+        Config {
             name, 
-            command: Command::new(argv.split(" ").next().unwrap()),
             argv,
             workingdir: match workingdir {
                 Some(slice) => Some(String::from(slice)),
@@ -114,8 +108,8 @@ impl Process {
             },
         }
     }
-    pub fn from_yaml(name: &str, argv:&str, config: &Yaml) -> Process {
-        /// Creates a Process instance from the process name and a
+    pub fn from_yaml(name: &str, argv:&str, config: &Yaml) -> Config {
+        /// Creates a Config instance from the process name and a
         /// Yaml struct representing the config options. Parses
         /// YAML into variables and calls new.
 
@@ -142,41 +136,59 @@ impl Process {
                 None => None,
             },
         };
-        Process::new(String::from(name),
-                     String::from(argv),
-                     (&config["workingdir"]).as_str(),
-                     (&config["autostart"]).as_bool(),
-                     env,
-                     (&config["stdout"]).as_str(),
-                     (&config["stderr"]).as_str(),
-                     exitcodes,
-                     (&config["startretries"]).as_i64(),
-                     (&config["umask"]).as_i64(),
-                     (&config["autorestart"]).as_str(),
-                     (&config["starttime"]).as_i64(),
-                     (&config["stopsignal"]).as_i64(),
-                     (&config["stoptime"]).as_i64(),
-                     (&config["numprocs"]).as_i64(),
+        Config::new(String::from(name),
+        String::from(argv),
+        (&config["workingdir"]).as_str(),
+        (&config["autostart"]).as_bool(),
+        env,
+        (&config["stdout"]).as_str(),
+        (&config["stderr"]).as_str(),
+        exitcodes,
+        (&config["startretries"]).as_i64(),
+        (&config["umask"]).as_i64(),
+        (&config["autorestart"]).as_str(),
+        (&config["starttime"]).as_i64(),
+        (&config["stopsignal"]).as_i64(),
+        (&config["stoptime"]).as_i64(),
+        (&config["numprocs"]).as_i64(),
         )
     }
+}
 
+use std::process::Command;
+use std::fs::File;
+use std::process::Child;
+
+#[derive(Debug)]
+pub struct Process {
+    command: Command,
+    config: Config,
+}
+
+impl Process {
+    pub fn new(config: Config) -> Process{
+        Process {
+            command: Command::new(config.argv.split(" ").next().unwrap()),
+            config,
+        }
+    }
     fn add_workingdir(mut self) -> Self {
-        if let Some(ref string) = self.workingdir {
+        if let Some(ref string) = self.config.workingdir {
             self.command.env("PWD", string);
         }
         self
     }
 
     fn add_args(mut self) -> Self {
-        if self.argv.len() > 1 {
-            let args: Vec<&str> = self.argv.split(" ").collect();
+        if self.config.argv.len() > 1 {
+            let args: Vec<&str> = self.config.argv.split(" ").collect();
             self.command.args(&args[1..]);
         }
         self
     }
 
     fn add_stdout(mut self) -> Self {
-        if let Some(ref string) = self.stdout {
+        if let Some(ref string) = self.config.stdout {
             match File::open(string) {
                 Ok(file) => {self.command.stdout(file);},
                 Err(e) => println!("error{:?}", e),
@@ -186,7 +198,7 @@ impl Process {
     }
 
     fn add_stderr(mut self) -> Self {
-        if let Some(ref string) = self.stderr {
+        if let Some(ref string) = self.config.stderr {
             match File::open(string) {
                 Ok(file) => {self.command.stderr(file);},
                 Err(e) => println!("error{:?}", e),
@@ -196,7 +208,7 @@ impl Process {
     }
 
     fn add_env(mut self) -> Self {
-        if let Some(ref vect) = self.env {
+        if let Some(ref vect) = self.config.env {
             let v: Vec<(String, String)> = vect.to_vec();
             self.command.envs(v);
         }
@@ -206,25 +218,6 @@ impl Process {
     pub fn spawn(mut self) -> (Self, Result<Child, super::std::io::Error>) {
         let child = self.command.spawn();
         (self, child)
-        /*
-            let now = Instant::now();
-            let child = self.command.spawn();
-            match child {
-            Ok(mut child) => {
-            println!("child {} launched with pid: {:?}", self.name, child.id());
-            child.wait();
-            let nownow = Instant::now();
-            let duree = nownow.duration_since(now);
-            println!("duree: {:?}", duree);
-            if duree < self.starttime {
-            println!("must be restart");
-    }
-    }
-            Err(e) => { println!("error {:?}", e);
-    }
-    }
-            self
-         */
     }
     pub fn start(self) -> (Self, Result<Child, super::std::io::Error>) {
         self.add_args()
@@ -236,37 +229,40 @@ impl Process {
     }
 }
 
-    pub fn execute_process(process: Process, nb_try: u64) {
+pub fn execute_process(process: Process) {
     //println!("process is {:#?}", process);
 
-    //println!("nb_try {}, startretries {}", nb_try, process.startretries);
-    if nb_try > process.startretries {
-        println!("gave up: {} entered FATAL state, too many start retries too quickly",
-                 process.name);
-        return ;
-    }
-    let (process, child) = process.start();
-    let now = Instant::now();
-    match child {
-        Ok(mut child) => {
-            println!("INFO spawned: '{}' with pid {:?}", process.name, child.id());
-            let exit_status = child.wait().unwrap();
-            let nownow = Instant::now();
-            let duree = nownow.duration_since(now);
-            //println!("duree: {:?}", duree);
-            let exit_status_code = exit_status.code().unwrap();
-            if duree < process.starttime || !process.exitcodes.contains(&(exit_status_code as i64)) {
-                println!("INFO exited: '{}' (exit status {}; not expected)", 
-                         process.name, 
-                         exit_status_code);
-                return execute_process(process, nb_try + 1);
-            } else {
-                println!("INFO exited: '{}' (exit status {}; expected)", 
-                         process.name, 
-                         exit_status_code);
+    fn aux(process: Process, nb_try: u64) {
+        //println!("nb_try {}, startretries {}", nb_try, process.startretries);
+        if nb_try > process.config.startretries {
+            println!("gave up: {} entered FATAL state, too many start retries too quickly",
+                     process.config.name);
+            return ;
+        }
+        let (process, child) = process.start();
+        let now = Instant::now();
+        match child {
+            Ok(mut child) => {
+                println!("INFO spawned: '{}' with pid {:?}", process.config.name, child.id());
+                let exit_status = child.wait().unwrap();
+                let nownow = Instant::now();
+                let duree = nownow.duration_since(now);
+                //println!("duree: {:?}", duree);
+                let exit_status_code = exit_status.code().unwrap();
+                if duree < process.config.starttime || !process.config.exitcodes.contains(&(exit_status_code as i64)) {
+                    println!("INFO exited: '{}' (exit status {}; not expected)", 
+                             process.config.name, 
+                             exit_status_code);
+                    return aux(process, nb_try + 1);
+                } else {
+                    println!("INFO exited: '{}' (exit status {}; expected)", 
+                             process.config.name, 
+                             exit_status_code);
+                }
+            }
+            Err(e) => { println!("error {:?}", e);
             }
         }
-        Err(e) => { println!("error {:?}", e);
-        }
     }
+    aux(process, 0);
 }

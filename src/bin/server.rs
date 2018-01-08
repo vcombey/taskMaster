@@ -12,14 +12,18 @@ use std::io::prelude::*;
 use std::process::Command;
 #[allow(unused_imports)]
 use std::process::Child;
+use std::collections::HashMap;
 
 extern crate yaml_rust;
 #[allow(unused_imports)]
 use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
 
 extern crate task_master;
+use task_master::process::Config;
 use task_master::process::Process;
 use task_master::process::execute_process;
+
+use std::thread;
 
 fn parse_argv (args: &[String]) -> (&str, &str)
 {
@@ -35,8 +39,7 @@ fn parse_argv (args: &[String]) -> (&str, &str)
     (option, filename)
 }
 
-fn launch_config(filename: &str)
-{
+fn launch_config(filename: &str) -> HashMap<String,Config> {
     let mut f = File::open(filename).unwrap();
 
     let mut contents = String::new();
@@ -48,6 +51,7 @@ fn launch_config(filename: &str)
 
     assert!(!doc["programs"].is_badvalue());
 
+    let mut map = HashMap::new();
     let program_section = &doc["programs"];
     {
         let hash = program_section.as_hash().unwrap();
@@ -56,10 +60,24 @@ fn launch_config(filename: &str)
                 (Some(name), None) => eprintln!("Missing command for process {}", name),
                 (None, Some(_)) => eprintln!("Missing process name"),
                 (None, None) => eprintln!("Missing both process name and command"),
-                // (Some(name), Some(argv)) => Process::from_yaml(name, argv, config).start(),
-                 (Some(name), Some(argv)) => execute_process(Process::from_yaml(name, argv, config), 0)
+                (Some(name), Some(argv)) => {map.insert(String::from(name), Config::from_yaml(name, argv, config));},
             }
         }
+    }
+    return map;
+}
+
+fn lauch_processes(map: HashMap<String,Config>) {
+    let mut threads: Vec<thread::JoinHandle<()>> = Vec::new();
+    for (key, value) in map.iter() {
+        let clone_value = value.clone();
+        let handle = thread::spawn(|| {
+            execute_process(Process::new(clone_value));
+        });
+        threads.push(handle);
+    }
+    for handle in threads {
+        handle.join();
     }
 }
 
@@ -69,5 +87,7 @@ fn main()
     let (option, filename) = parse_argv(&args);
     println!("{}, {}", option, filename);
 
-    launch_config(filename);
+    let map = launch_config(filename);
+    //println!("map is {:#?}", map);
+    lauch_processes(map);
 }

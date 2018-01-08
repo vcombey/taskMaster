@@ -1,8 +1,8 @@
-use process::Process;
+use process::Config;
 use std::collections::HashMap;
 pub struct Service {
     name: String,
-    process: HashMap<String, Process>,
+    process: HashMap<String, Config>,
 }
 
 impl Service {
