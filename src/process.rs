@@ -158,18 +158,22 @@ impl Config {
 use std::process::Command;
 use std::fs::File;
 use std::process::Child;
+use std::sync::mpsc::Receiver;
+use cmd;
 
 #[derive(Debug)]
 pub struct Process {
     command: Command,
     config: Config,
+    receiver: Receiver<cmd::Cmd>,
 }
 
 impl Process {
-    pub fn new(config: Config) -> Process{
+    pub fn new(config: Config, receiver: Receiver<cmd::Cmd>) -> Process{
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
             config,
+            receiver,
         }
     }
     fn add_workingdir(mut self) -> Self {

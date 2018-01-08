@@ -23,8 +23,6 @@ use task_master::process::Config;
 use task_master::process::Process;
 use task_master::process::execute_process;
 
-use std::thread;
-
 fn parse_argv (args: &[String]) -> (&str, &str)
 {
     if args.len() < 3 {
@@ -67,13 +65,19 @@ fn launch_config(filename: &str) -> HashMap<String,Config> {
     return map;
 }
 
+use std::sync::mpsc::channel;
+use std::thread;
+use task_master::cmd;
+
 fn lauch_processes(map: HashMap<String,Config>) {
     let mut threads: Vec<thread::JoinHandle<()>> = Vec::new();
     for (key, value) in map.iter() {
+        let (sender, receiver) = channel();
         let clone_value = value.clone();
         let handle = thread::spawn(|| {
-            execute_process(Process::new(clone_value));
+            execute_process(Process::new(clone_value, receiver));
         });
+        sender.send(cmd::Cmd::STOP);
         threads.push(handle);
     }
     for handle in threads {
