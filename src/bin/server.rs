@@ -19,6 +19,7 @@ use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
 
 extern crate task_master;
 use task_master::process::Process;
+use task_master::process::execute_process;
 
 fn parse_argv (args: &[String]) -> (&str, &str)
 {
@@ -55,7 +56,8 @@ fn launch_config(filename: &str)
                 (Some(name), None) => eprintln!("Missing command for process {}", name),
                 (None, Some(_)) => eprintln!("Missing process name"),
                 (None, None) => eprintln!("Missing both process name and command"),
-                (Some(name), Some(argv)) => Process::from_yaml(name, argv, config).start(),
+                // (Some(name), Some(argv)) => Process::from_yaml(name, argv, config).start(),
+                 (Some(name), Some(argv)) => execute_process(Process::from_yaml(name, argv, config), 0)
             }
         }
     }
