@@ -18,7 +18,7 @@ extern crate yaml_rust;
 use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
 
 extern crate task_master;
-use task_master::process::process::Process;
+use task_master::process::Process;
 
 fn parse_argv (args: &[String]) -> (&str, &str)
 {

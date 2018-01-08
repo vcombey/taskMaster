@@ -1,9 +1,17 @@
-pub mod process {
     use std::time::{Duration, Instant};
     use std::process::Command;
     use std::fs::File;
     #[allow(unused_imports)]
     use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
+    #[allow(unused_imports)]
+    use std::process::Child;
+
+    #[derive(Debug)]
+    enum Autorestart {
+        TRUE,
+        FALSE,
+        UNEXPECTED,
+    }
 
     #[derive(Debug)]
     pub struct Process {
@@ -18,9 +26,9 @@ pub mod process {
         stdout: Option<String>,
         stderr: Option<String>,
         exitcodes: Vec<i64>,
-        startretries: i64,
+        startretries: u64,
         umask: i64,
-        autorestart: i64,
+        autorestart: Autorestart,
         starttime: Duration,
         stopsignal: i64,
         stoptime: Duration,
@@ -39,7 +47,7 @@ pub mod process {
                    exitcodes: Option<Vec<i64>>,
                    startretries: Option<i64>,
                    umask: Option<i64>,
-                   autorestart: Option<i64>,
+                   autorestart: Option<&str>,
                    starttime: Option<i64>,
                    stopsignal: Option<i64>,
                    stoptime: Option<i64>,
@@ -74,17 +82,20 @@ pub mod process {
                     None => vec![1, 2],
                 },
                 startretries: match startretries {
-                    Some(i) => i,
+                    Some(i) => i as u64, // TODO check coherence of types i64 and u64
                     None => 3,
                 },
                 umask: match umask {
                     Some(i) => i,
                     None => 0700,
                 },
-                autorestart: match autorestart { //TODO: voir ce que c'est
-                    Some(i) => i,
-                    None => 0,
-                },
+            autorestart: match autorestart { //TODO: voir ce que c'est
+                Some(slice) => if slice == "unexpected" { Autorestart::UNEXPECTED } 
+                               else if slice == "true" { Autorestart::TRUE }
+                               else if slice == "false"{ Autorestart::FALSE }
+                               else { panic!("bad value for autorestart") }
+                None => Autorestart::UNEXPECTED,
+            },
                 starttime:  match starttime {
                     Some(i) => Duration::from_secs(i as u64),
                     None => Duration::from_secs(1),
@@ -141,7 +152,7 @@ pub mod process {
                          exitcodes,
                          (&config["startretries"]).as_i64(),
                          (&config["umask"]).as_i64(),
-                         (&config["autorestart"]).as_i64(),
+                         (&config["autorestart"]).as_str(),
                          (&config["starttime"]).as_i64(),
                          (&config["stopsignal"]).as_i64(),
                          (&config["stoptime"]).as_i64(),
@@ -220,5 +231,3 @@ pub mod process {
                 .spawn();
         }
     }
-
-}
