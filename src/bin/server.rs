@@ -18,8 +18,8 @@ extern crate yaml_rust;
 use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
 
 extern crate task_master;
-use task_master::task_master::Process;
-    
+use task_master::process::process::Process;
+
 fn parse_argv (args: &[String]) -> (&str, &str)
 {
     if args.len() < 3 {
@@ -34,15 +34,7 @@ fn parse_argv (args: &[String]) -> (&str, &str)
     (option, filename)
 }
 
-fn exec_command (name: &Yaml, config: &Yaml) {
-    let name = name.as_str().unwrap();
-    let process = Process::from_yaml(name, config);
-
-    process.start();
-
-}
-
-fn parse_config_file (filename: &str)
+fn launch_config(filename: &str)
 {
     let mut f = File::open(filename).unwrap();
 
@@ -55,12 +47,16 @@ fn parse_config_file (filename: &str)
 
     assert!(!doc["programs"].is_badvalue());
 
-    let x = &doc["programs"];
+    let program_section = &doc["programs"];
     {
-        let hash = x.as_hash().unwrap();
-        //   println!("hash: {:#?}", hash);
-        for (name, cmd) in hash.iter() {
-            exec_command(name, cmd);
+        let hash = program_section.as_hash().unwrap();
+        for (name, config) in hash.iter() {
+            match (name.as_str(), config["cmd"].as_str()) {
+                (Some(name), None) => eprintln!("Missing command for process {}", name),
+                (None, Some(_)) => eprintln!("Missing process name"),
+                (None, None) => eprintln!("Missing both process name and command"),
+                (Some(name), Some(argv)) => Process::from_yaml(name, argv, config).start(),
+            }
         }
     }
 }
@@ -71,5 +67,5 @@ fn main()
     let (option, filename) = parse_argv(&args);
     println!("{}, {}", option, filename);
 
-    parse_config_file(filename);
+    launch_config(filename);
 }
