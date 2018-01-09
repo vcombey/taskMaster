@@ -166,24 +166,26 @@ pub struct Process {
     command: Command,
     config: Config,
     receiver: Receiver<cmd::Cmd>,
+    child: Option<Child>,
 }
 
 impl Process {
-    pub fn new(config: Config, receiver: Receiver<cmd::Cmd>) -> Process{
+    pub fn new(config: Config, receiver: Receiver<cmd::Cmd>) -> Process {
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
             config,
             receiver,
+            child: None,
         }
     }
-    fn add_workingdir(mut self) -> Self {
+    fn add_workingdir(&mut self) -> &mut Process {
         if let Some(ref string) = self.config.workingdir {
             self.command.env("PWD", string);
         }
         self
     }
 
-    fn add_args(mut self) -> Self {
+    fn add_args(&mut self) -> &mut Process {
         if self.config.argv.len() > 1 {
             let args: Vec<&str> = self.config.argv.split(" ").collect();
             self.command.args(&args[1..]);
@@ -191,7 +193,7 @@ impl Process {
         self
     }
 
-    fn add_stdout(mut self) -> Self {
+    fn add_stdout(&mut self) -> &mut Process {
         if let Some(ref string) = self.config.stdout {
             match File::open(string) {
                 Ok(file) => {self.command.stdout(file);},
@@ -201,7 +203,7 @@ impl Process {
         self
     }
 
-    fn add_stderr(mut self) -> Self {
+    fn add_stderr(&mut self) -> &mut Process {
         if let Some(ref string) = self.config.stderr {
             match File::open(string) {
                 Ok(file) => {self.command.stderr(file);},
@@ -211,7 +213,7 @@ impl Process {
         self
     }
 
-    fn add_env(mut self) -> Self {
+    fn add_env(&mut self) -> &mut Process {
         if let Some(ref vect) = self.config.env {
             let v: Vec<(String, String)> = vect.to_vec();
             self.command.envs(v);
@@ -219,11 +221,15 @@ impl Process {
         self
     }
 
-    pub fn spawn(mut self) -> (Self, Result<Child, super::std::io::Error>, Instant) {
+    pub fn spawn(&mut self) -> &mut Process {
         let child = self.command.spawn();
-        (self, child, Instant::now())
+        if let Ok(child) = child {
+            self.child = Some(child);
+        }
+        self
     }
-    pub fn start(self) -> (Self, Result<Child, super::std::io::Error>, Instant) {
+
+    pub fn start(&mut self) -> &mut Process {
         self.add_args()
             .add_workingdir()
             .add_env()
@@ -231,22 +237,52 @@ impl Process {
             .add_stderr()
             .spawn()
     }
+    
+    pub fn try_launch(&mut self) -> &mut Process {
+        self.start();
+        if let Some(child) = child {
+            let now = Instant::now();
+            loop {
+                match child.try_wait() {
+                    Ok(Some(exit_status)) => {
+                        eprintln!("INFO spawned: '{}' with pid {:?}", process.config.name, child.id());
+                        let nownow = Instant::now();
+                        let duree = nownow.duration_since(now);
+                        //eprintln!("duree: {:?}", duree);
+                        let exit_status_code = exit_status.code().unwrap();
+                        if duree < process.config.starttime || !process.config.exitcodes.contains(&(exit_status_code as i64)) {
+                            eprintln!("INFO exited: '{}' (exit status {}; not expected)", 
+                                      process.config.name, 
+                                      exit_status_code);
+                            continue ; 
+                        } else {
+                            eprintln!("INFO exited: '{}' (exit status {}; expected)", 
+                                      process.config.name, 
+                                      exit_status_code);
+                        }
+                        break ;
+                    },
+                }
+            }
+        }
+        self
+    }
 }
 
-pub fn execute_process(process: Process) {
+pub fn execute_process(mut process: Process) {
     //println!("process is {:#?}", process);
 
-    fn aux(process: Process, nb_try: u64) -> Process {
+    fn aux(process: &mut Process, nb_try: u64) {
         //println!("nb_try {}, startretries {}", nb_try, process.startretries);
         if nb_try > process.config.startretries {
             eprintln!("gave up: {} entered FATAL state, too many start retries too quickly",
-                     process.config.name);
-            return process;
+                      process.config.name);
+            return ;
         }
-        let (process, mut child, now) = process.start();
+        let (now, ref mut process) = process.start();
         loop {
-            match &mut child {
-                &mut Ok(ref mut child) => {
+            match process.child {
+                Some(ref mut child) => {
                     match child.try_wait() {
                         Ok(Some(exit_status)) => {
                             eprintln!("INFO spawned: '{}' with pid {:?}", process.config.name, child.id());
@@ -256,15 +292,15 @@ pub fn execute_process(process: Process) {
                             let exit_status_code = exit_status.code().unwrap();
                             if duree < process.config.starttime || !process.config.exitcodes.contains(&(exit_status_code as i64)) {
                                 eprintln!("INFO exited: '{}' (exit status {}; not expected)", 
-                                         process.config.name, 
-                                         exit_status_code);
+                                          process.config.name, 
+                                          exit_status_code);
                                 return aux(process, nb_try + 1);
                             } else {
                                 eprintln!("INFO exited: '{}' (exit status {}; expected)", 
-                                         process.config.name, 
-                                         exit_status_code);
+                                          process.config.name, 
+                                          exit_status_code);
                             }
-                            return process;
+                            return ;
                         },
                         Ok(None) => {
                             continue ;
@@ -272,18 +308,18 @@ pub fn execute_process(process: Process) {
                         Err(e) => eprintln!("error attempting to wait: {}", e),
                     }
                 }
-                &mut Err(ref mut e) => { eprintln!("error {:?}", e);
+                None => { continue ;
                 }
             }
         }
     }
-    let process = aux(process, 0);
+    aux(&mut process, 0);
     loop {
         match process.receiver.try_recv() {
-            Ok(cmd) => eprintln!("INFO process '{}' receive {:?}", process.config.name, cmd),
+            Ok(cmd) => { 
+                eprintln!("INFO process '{}' receive {:?}", process.config.name, cmd);
+            },
             Err(e) => continue ,
         }
-
     }
-
 }
