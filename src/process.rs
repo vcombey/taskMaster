@@ -195,7 +195,7 @@ impl Process {
         if let Some(ref string) = self.config.stdout {
             match File::open(string) {
                 Ok(file) => {self.command.stdout(file);},
-                Err(e) => println!("error{:?}", e),
+                Err(e) => eprintln!("error{:?}", e),
             }
         }
         self
@@ -205,7 +205,7 @@ impl Process {
         if let Some(ref string) = self.config.stderr {
             match File::open(string) {
                 Ok(file) => {self.command.stderr(file);},
-                Err(e) => println!("error{:?}", e),
+                Err(e) => eprintln!("error{:?}", e),
             }
         }
         self
@@ -239,7 +239,7 @@ pub fn execute_process(process: Process) {
     fn aux(process: Process, nb_try: u64) -> Process {
         //println!("nb_try {}, startretries {}", nb_try, process.startretries);
         if nb_try > process.config.startretries {
-            println!("gave up: {} entered FATAL state, too many start retries too quickly",
+            eprintln!("gave up: {} entered FATAL state, too many start retries too quickly",
                      process.config.name);
             return process;
         }
@@ -249,18 +249,18 @@ pub fn execute_process(process: Process) {
                 &mut Ok(ref mut child) => {
                     match child.try_wait() {
                         Ok(Some(exit_status)) => {
-                            println!("INFO spawned: '{}' with pid {:?}", process.config.name, child.id());
+                            eprintln!("INFO spawned: '{}' with pid {:?}", process.config.name, child.id());
                             let nownow = Instant::now();
                             let duree = nownow.duration_since(now);
-                            //println!("duree: {:?}", duree);
+                            //eprintln!("duree: {:?}", duree);
                             let exit_status_code = exit_status.code().unwrap();
                             if duree < process.config.starttime || !process.config.exitcodes.contains(&(exit_status_code as i64)) {
-                                println!("INFO exited: '{}' (exit status {}; not expected)", 
+                                eprintln!("INFO exited: '{}' (exit status {}; not expected)", 
                                          process.config.name, 
                                          exit_status_code);
                                 return aux(process, nb_try + 1);
                             } else {
-                                println!("INFO exited: '{}' (exit status {}; expected)", 
+                                eprintln!("INFO exited: '{}' (exit status {}; expected)", 
                                          process.config.name, 
                                          exit_status_code);
                             }
@@ -269,19 +269,19 @@ pub fn execute_process(process: Process) {
                         Ok(None) => {
                             continue ;
                         }
-                        Err(e) => println!("error attempting to wait: {}", e),
+                        Err(e) => eprintln!("error attempting to wait: {}", e),
                     }
                 }
-                &mut Err(ref mut e) => { println!("error {:?}", e);
+                &mut Err(ref mut e) => { eprintln!("error {:?}", e);
                 }
             }
         }
     }
     let process = aux(process, 0);
     loop {
-        match process.receiver.recv() {
-            Ok(cmd) => println!("INFO process '{}' receive {:?}", process.config.name, cmd),
-            Err(e) => println!("error {}", e),
+        match process.receiver.try_recv() {
+            Ok(cmd) => eprintln!("INFO process '{}' receive {:?}", process.config.name, cmd),
+            Err(e) => continue ,
         }
 
     }
