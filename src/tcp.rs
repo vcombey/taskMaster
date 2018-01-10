@@ -49,8 +49,14 @@ pub fn receive(listener: TcpListener) {
             Ok(mut stream) => {
                 //let (mut stream, _) = listener.accept().unwrap();
 
-                match stream.read_to_string(&mut serialized)
-                stream.flush().unwrap();
+                match stream.read_to_string(&mut serialized) {
+                    Ok(_) => {;},
+                    Err(e) => {println!("{:?}", e); continue ;},
+                }
+                match stream.flush() {
+                    Ok(_) => {;},
+                    Err(e) => {println!("{:?}", e); continue ;},
+                }
 
                 let deserialized: ressources::Foo = serde_json::from_str(&serialized).unwrap();
                 println!("After deserialize : {:?}", deserialized);

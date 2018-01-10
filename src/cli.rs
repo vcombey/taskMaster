@@ -1,6 +1,8 @@
 extern crate liner;
 
-use liner::Context;
+use cmd::Cmd;
+
+use self::liner::Context;
 
 const HELP_START : &'static str = "
 start <name>		Start a process
@@ -45,35 +47,33 @@ default commands (type help <topic>):
 start  restart   stop  reload  status    shutdown
 ";
 
-fn parse_cmd(line: &str) {
+pub fn parse_cmd(line: &str) -> Option<(Cmd, Vec<&str>)> {
     let split: Vec<&str> = line.split(" ").collect();
     
-    if split[0] == "help" {
-        let join = split[1..].join(" ");
-        match &join[..] {
-            "start" => println!("{}", HELP_START),
-            "restart" => println!("{}", HELP_RESTART),
-            "stop" => println!("{}", HELP_STOP),
-            "reload" => println!("{}", HELP_RELOAD),
-            "status" => println!("{}", HELP_STATUS),
-            "shutdown" => println!("{}", HELP_SHUTDOWN),
-            "" => println!("{}", HELP_DISPLAY),
-            other => println!("*** No help on {}", other),
-        }
-    }
-    else {
-        println!("*** Unknown syntax: {:?}", line);
-    }
-}
-
-fn main() {
-    let mut con = Context::new();
-    loop {
-        let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
-
-        parse_cmd(&res);
-        if !res.is_empty() {
-            con.history.push(res.into()).unwrap();
-        }
+    match split[0] {
+        "help" => {
+            let join = split[1..].join(" ");
+            match &join[..] {
+                "start" => println!("{}", HELP_START),
+                "restart" => println!("{}", HELP_RESTART),
+                "stop" => println!("{}", HELP_STOP),
+                "reload" => println!("{}", HELP_RELOAD),
+                "status" => println!("{}", HELP_STATUS),
+                "shutdown" => println!("{}", HELP_SHUTDOWN),
+                "" => println!("{}", HELP_DISPLAY),
+                other => println!("*** No help on {}", other),
+            }
+            None
+        },
+        "stop" => Some((Cmd::STOP, split[1..].to_vec())),//.iter().map(|s| String::from(*s)).collect())),
+        "start" => Some((Cmd::START, split[1..].to_vec())),
+        "restart" => Some((Cmd::RESTART, split[1..].to_vec())),
+        "reload" => Some((Cmd::RELOAD, split[1..].to_vec())),
+        "shutdown" => Some((Cmd::SHUTDOWN, split[1..].to_vec())),
+        "status" => Some((Cmd::STATUS, split[1..].to_vec())),
+        _ => {
+            println!("*** Unknown syntax: {:?}", line);
+            None
+        },
     }
 }

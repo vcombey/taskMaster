@@ -7,3 +7,4 @@ pub mod process;
 pub mod service;
 pub mod cmd;
 pub mod tcp;
+pub mod cli;
