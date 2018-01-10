@@ -167,6 +167,8 @@ fn launch_cmd(threads: &mut HashMap<String,(thread::JoinHandle<()>, Sender<Cmd>)
     }
 }
 
+use std::time::Duration;
+
 fn main()
 {
     let args: Vec<String> = env::args().collect();
@@ -178,7 +180,6 @@ fn main()
     let mut threads = lauch_processes(map);
     let mut con = Context::new();
     loop {
-        use std::time::Duration;
         thread::sleep(Duration::from_secs(2));
         let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
 

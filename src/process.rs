@@ -180,7 +180,7 @@ impl Process {
     }
     fn add_workingdir(&mut self) -> &mut Process {
         if let Some(ref string) = self.config.workingdir {
-            self.command.env("PWD", string);
+            self.command.current_dir(string);
         }
         self
     }
@@ -243,10 +243,16 @@ impl Process {
 
                 /* le program has ended */
                 Ok(Some(exit_status)) => {
-                    let exit_status_code = exit_status.code().unwrap();
-                    eprintln!("INFO exited: '{}' (exit status {}; expected)", 
-                              self.config.name, 
-                              exit_status_code);
+                    match exit_status.code() {
+                        Some(exit_status_code) => {
+                            eprintln!("INFO exited: '{}' (exit status {}; expected)", 
+                                                             self.config.name, 
+                                                             exit_status_code);
+                        }
+                        None => {
+                            eprintln!("INFO stopped: '{}' (terminated by SIGKILL) ", self.config.name);
+                        }
+                    }
                     return true;
                 },
                 _ => { return false;}
@@ -319,12 +325,12 @@ impl Process {
     }
     pub fn handle_cmd(&mut self, cmd: Cmd) {
         if cmd == Cmd::STOP {
-             if let Some(ref mut child) = self.child {
-                 match child.kill() {
-                    Ok(_) => eprintln!("INFO stopped: '{}' (terminated by SIGKILL) ", self.config.name),
+            if let Some(ref mut child) = self.child {
+                match child.kill() {
+                    Ok(_) => {;}, 
                     Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
-                 }
-             }
+                }
+            }
         }
     }
     pub fn manage_program(&mut self) {
