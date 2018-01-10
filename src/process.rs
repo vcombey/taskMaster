@@ -292,29 +292,24 @@ impl Process {
     }
     /// call in loop try launch no more than startretries or
     /// until the program has started
-    pub fn try_execute(&mut self) -> &mut Process {
+    pub fn try_execute(&mut self) -> bool {
         for nb_try in 0..self.config.startretries+1{
         println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
             if self.try_launch() {
-                break ;
+                return true ;
            }
         }
-        self
+        false
     }
-}
-
-pub fn execute_process(mut process: Process) {
-    //println!("process is {:#?}", process);
-
-    process.try_execute();
-  //  aux(&mut process, 0);
-   // */
-    loop {
-        match process.receiver.try_recv() {
-            Ok(cmd) => { 
-                eprintln!("INFO process '{}' receive {:?}", process.config.name, cmd);
-            },
-            Err(e) => continue ,
+    pub fn manage_program(&mut self) {
+        self.try_execute();
+        loop {
+            match self.receiver.try_recv() {
+                Ok(cmd) => { 
+                    eprintln!("INFO process '{}' receive {:?}", self.config.name, cmd);
+                },
+                Err(e) => continue ,
+            }
         }
     }
 }
