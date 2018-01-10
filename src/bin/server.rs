@@ -171,9 +171,19 @@ fn launch_cmd(threads: &mut HashMap<String,(thread::JoinHandle<()>, Sender<Cmd>)
 }
 
 use std::time::Duration;
+use std::net::{TcpListener, TcpStream};
+use task_master::tcp;
 
 fn main()
 {
+    let listening_stream = TcpListener::bind("127.0.0.1:4242")
+        .unwrap();
+
+    //let emit_stream = TcpStream::connect("127.0.0.1:4242")
+     //   .unwrap();
+
+    tcp::receive(listening_stream);
+
     let args: Vec<String> = env::args().collect();
     let (option, filename) = parse_argv(&args);
     println!("{}, {}", option, filename);
