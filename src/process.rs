@@ -238,32 +238,66 @@ impl Process {
             .spawn()
     }
     
-    pub fn try_launch(&mut self) -> &mut Process {
+    /// try launch the programe one time
+    /// return after starttime if the program is still running
+    /// or return if the program has exited before starttime
+    pub fn try_launch(&mut self) -> bool {
+        let mut success = false;
         self.start();
-        if let Some(child) = child {
+        if let Some(ref mut child) = self.child {
             let now = Instant::now();
             loop {
                 match child.try_wait() {
+
+                    /* le program has ended */
                     Ok(Some(exit_status)) => {
-                        eprintln!("INFO spawned: '{}' with pid {:?}", process.config.name, child.id());
-                        let nownow = Instant::now();
-                        let duree = nownow.duration_since(now);
+                        eprintln!("INFO spawned: '{}' with pid {:?}", self.config.name, child.id());
                         //eprintln!("duree: {:?}", duree);
                         let exit_status_code = exit_status.code().unwrap();
-                        if duree < process.config.starttime || !process.config.exitcodes.contains(&(exit_status_code as i64)) {
+                        let nownow = Instant::now();
+                        let duree = nownow.duration_since(now);
+
+                        /* it is an unexpected ended */
+                        if duree < self.config.starttime || !self.config.exitcodes.contains(&(exit_status_code as i64)) {
                             eprintln!("INFO exited: '{}' (exit status {}; not expected)", 
-                                      process.config.name, 
+                                      self.config.name, 
                                       exit_status_code);
-                            continue ; 
+
+                        /* it is an expected ended */
                         } else {
+                            success = true;
                             eprintln!("INFO exited: '{}' (exit status {}; expected)", 
-                                      process.config.name, 
+                                      self.config.name, 
                                       exit_status_code);
                         }
                         break ;
                     },
+                    /* le program has not ended yet : check the time*/
+                    Ok(None) => {
+                        let nownow = Instant::now();
+                        let duree = nownow.duration_since(now);
+                        if duree > self.config.starttime {
+                            eprintln!("INFO spawned: '{}' with pid {:?}", self.config.name, child.id());
+                            success = true;
+                            break ;
+                        } else { 
+                            continue ;
+                        }
+                    }
+                    Err(e) => eprintln!("error attempting to wait: {}", e),
                 }
             }
+        }
+        success
+    }
+    /// call in loop try launch no more than startretries or
+    /// until the program has started
+    pub fn try_execute(&mut self) -> &mut Process {
+        for nb_try in 0..self.config.startretries+1{
+        println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
+            if self.try_launch() {
+                break ;
+           }
         }
         self
     }
@@ -272,48 +306,9 @@ impl Process {
 pub fn execute_process(mut process: Process) {
     //println!("process is {:#?}", process);
 
-    fn aux(process: &mut Process, nb_try: u64) {
-        //println!("nb_try {}, startretries {}", nb_try, process.startretries);
-        if nb_try > process.config.startretries {
-            eprintln!("gave up: {} entered FATAL state, too many start retries too quickly",
-                      process.config.name);
-            return ;
-        }
-        let (now, ref mut process) = process.start();
-        loop {
-            match process.child {
-                Some(ref mut child) => {
-                    match child.try_wait() {
-                        Ok(Some(exit_status)) => {
-                            eprintln!("INFO spawned: '{}' with pid {:?}", process.config.name, child.id());
-                            let nownow = Instant::now();
-                            let duree = nownow.duration_since(now);
-                            //eprintln!("duree: {:?}", duree);
-                            let exit_status_code = exit_status.code().unwrap();
-                            if duree < process.config.starttime || !process.config.exitcodes.contains(&(exit_status_code as i64)) {
-                                eprintln!("INFO exited: '{}' (exit status {}; not expected)", 
-                                          process.config.name, 
-                                          exit_status_code);
-                                return aux(process, nb_try + 1);
-                            } else {
-                                eprintln!("INFO exited: '{}' (exit status {}; expected)", 
-                                          process.config.name, 
-                                          exit_status_code);
-                            }
-                            return ;
-                        },
-                        Ok(None) => {
-                            continue ;
-                        }
-                        Err(e) => eprintln!("error attempting to wait: {}", e),
-                    }
-                }
-                None => { continue ;
-                }
-            }
-        }
-    }
-    aux(&mut process, 0);
+    process.try_execute();
+  //  aux(&mut process, 0);
+   // */
     loop {
         match process.receiver.try_recv() {
             Ok(cmd) => { 

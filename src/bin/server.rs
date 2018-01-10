@@ -179,6 +179,8 @@ fn main()
     let mut threads = lauch_processes(map);
     let mut con = Context::new();
     loop {
+        use std::time::Duration;
+        thread::sleep(Duration::from_secs(2));
         let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
 
         if let Some((cmd, arg)) = parse_cmd(&res) {
