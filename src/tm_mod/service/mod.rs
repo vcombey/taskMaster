@@ -10,20 +10,20 @@ use super::config::Config;
 use self::thread::process::Process;
 use self::thread::Thread;
 
-pub struct Service<'sv, 'c> {
-    name: String,
+pub struct Service<'c> {
+    pub name: String,
     thread_hash: HashMap<&'c str, Thread>,
 }
 
-impl<'sv, 'c> Service<'sv, 'c> {
-    pub fn new(name: String) -> Service<'sv, 'c> {
+impl<'c> Service<'c> {
+    pub fn new(name: String) -> Service<'c> {
         Service {
             name,
             thread_hash: HashMap::new(),
         }
     }
     pub fn launch_from_hash(&mut self, map: HashMap<String, Config>) {
-        for (name, config) in map.iter() {
+        for (name, config) in map.into_iter() {
             let (sender, receiver) = mpsc::channel();
             let clone_config = config.clone();
             let handle = std_thread::spawn(move || {
@@ -31,7 +31,6 @@ impl<'sv, 'c> Service<'sv, 'c> {
                 process.manage_program();
             });
             self.thread_hash.insert(&name, Thread::new(config, handle, sender));
+        }
     }
-    self.tread_hash.insert()
-}
 }

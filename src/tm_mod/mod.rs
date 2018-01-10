@@ -19,10 +19,10 @@ use self::config::Config;
 
 pub struct TmStruct<'tm, 'sv, 'c> {
     config_file: &'tm str,
-    service_hash: HashMap<&'sv str, service::Service<'sv, 'c>>,
+    service_hash: HashMap<&'sv str, service::Service<'c>>,
 }
 
-impl<'tm, 'sv, 'c> TmStruct<'tm, 'sv, 'c> {
+impl<'tm, 'sv,'c> TmStruct<'tm, 'sv, 'c> {
     pub fn new(config_file: &'tm str) -> TmStruct<'tm, 'sv, 'c> {
         TmStruct {
             config_file,
@@ -48,10 +48,10 @@ impl<'tm, 'sv, 'c> TmStruct<'tm, 'sv, 'c> {
     }
 
     pub fn launch_from_hash(& mut self, map: HashMap<String, HashMap<String, Config>>) {
-        for (service, map) in map.iter() {
+        for (service, map) in map.into_iter() {
             let mut s = Service::new(service);
             s.launch_from_hash(map);
-           	self.service_hash.insert(&service, s);
+           	self.service_hash.insert(&s.name, s);
         }
     }
 }

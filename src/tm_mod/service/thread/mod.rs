@@ -11,7 +11,7 @@ pub struct Thread {
 }
 
 impl Thread {
-    pub fn new(config: Config, join_handle: JoinHandle<()>, sender: Sender<Cmd>) {
+    pub fn new(config: Config, join_handle: JoinHandle<()>, sender: Sender<Cmd>) -> Thread {
         Thread {
             config,
             join_handle,

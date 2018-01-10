@@ -36,10 +36,10 @@ pub struct Config {
 }
 
 
-impl<'c> Config<'c> {
+impl Config {
     pub fn new(name: &str,
                argv: &str, 
-               workingdir: Option<str>,
+               workingdir: Option<&str>,
                autostart: Option<bool>,
                env: Option<Vec<(String, String)>>,
                stdout: Option<&str>,
@@ -57,8 +57,8 @@ impl<'c> Config<'c> {
         /// Only mandatory arguments are name and command.
         /// Other arguments can be skipped by giving `None' 
         Config {
-            name: String::from(name),
-            name: String::from(argv),
+            name:  String::from(name),
+            argv:  String::from(argv),
             workingdir: match workingdir {
                 Some(slice) => Some(String::from(slice)),
                 None => None,
@@ -113,7 +113,7 @@ impl<'c> Config<'c> {
             },
         }
     }
-    pub fn from_yaml(name: &'c str, argv:&str, config: &Yaml) -> Config {
+    pub fn from_yaml(name: &str, argv: &str, config: &Yaml) -> Config {
         /// Creates a Config instance from the process name and a
         /// Yaml struct representing the config options. Parses
         /// YAML into variables and calls new.
@@ -142,7 +142,7 @@ impl<'c> Config<'c> {
             },
         };
         Config::new(name,
-        String::from(argv),
+        argv,
         (&config["workingdir"]).as_str(),
         (&config["autostart"]).as_bool(),
         env,
