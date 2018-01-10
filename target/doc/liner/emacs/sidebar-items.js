@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Emacs","Emacs keybindings for `Editor`. This is the default for `Context::read_line()`."]]});

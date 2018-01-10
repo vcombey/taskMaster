@@ -51,7 +51,8 @@
    
    Struct Service {
    service_name: String,
-   thread_list: HashMap<String, thread::Thread>
+   config_hash: HashMap<String, Config>,
+   thread_list: HashMap<String, thread::Thread>,
    config: &Yaml,
    }
    
@@ -72,7 +73,7 @@
 	
 	Struct Thread {
 	sender: mpsc::sender,
-	config: &Config,
+	config: Config,
 	sender_to_main: mpsc::sender,
 	}
 	

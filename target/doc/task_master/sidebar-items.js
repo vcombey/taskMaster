@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["process",""],["service",""]]});
+initSidebarItems({"mod":[["tm_mod",""]]});

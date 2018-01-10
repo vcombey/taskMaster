@@ -4,47 +4,45 @@ use std::io;
 use std::io::Write;
 #[allow(unused_imports)]
 use std::env;
-#[allow(unused_imports)]
-use std::fs::File;
-#[allow(unused_imports)]
-use std::io::prelude::*;
+#[allow(unused_imports)] // REMOVE
+use std::fs::File; // REMOVE
+#[allow(unused_imports)] // REMOVE
+use std::io::prelude::*; // REMOVE
 #[allow(unused_imports)]
 use std::process::Command;
 #[allow(unused_imports)]
 use std::process::Child;
 use std::collections::HashMap;
 
-extern crate yaml_rust;
-#[allow(unused_imports)]
-use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
 
 extern crate task_master;
-use task_master::process::Config;
-use task_master::process::Process;
+use task_master::tm_mod::service::thread::process::Process;
+use task_master::tm_mod::config::Config;
 
 fn parse_argv (args: &[String]) -> (&str, &str)
 {
     if args.len() < 3 {
-        panic!("not enough arguments");
+        panic!("Not enough arguments");
     }
     let option = &args[1];
     if option != "-c" {
-        panic!("unknown option");
+        panic!(format!("Unknown option: -- {}", option));
     }
     let filename = &args[2];
 
     (option, filename)
 }
 
-fn launch_config(filename: &str) -> HashMap<String,Config> {
-    let mut f = File::open(filename).unwrap();
+fn launch_config(task_master: TmStruct) -> HashMap<String,Config> {
+    // let mut f = File::open(filename).unwrap();
 
-    let mut contents = String::new();
+    // let mut contents = String::new();
 
-    f.read_to_string(&mut contents).unwrap();
+    // f.read_to_string(&mut contents).unwrap();
 
-    let docs = YamlLoader::load_from_str(&contents).unwrap();
-    let doc = &docs[0];
+    // let docs = YamlLoader::load_from_str(&contents).unwrap();
+    let doc = task_master.parse_config_file().unwrap();
+    let doc = &doc[0];
 
     assert!(!doc["programs"].is_badvalue());
 
@@ -67,7 +65,7 @@ fn launch_config(filename: &str) -> HashMap<String,Config> {
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender;
 use std::thread;
-use task_master::cmd::Cmd;
+use task_master::tm_mod::cmd::Cmd;
 
 fn lauch_processes(map: HashMap<String,Config>) -> HashMap<String,(thread::JoinHandle<()>, Sender<Cmd>)> {
     let mut threads: HashMap<String,(thread::JoinHandle<()>, Sender<Cmd>)> = HashMap::new();
@@ -76,8 +74,7 @@ fn lauch_processes(map: HashMap<String,Config>) -> HashMap<String,(thread::JoinH
         let clone_value = value.clone();
         let handle = thread::spawn(|| {
             let mut process = Process::new(clone_value, receiver);
-            process.manage_program();
-        });
+            process.manage_program();});
         sender.send(Cmd::STOP);
         threads.insert(key.clone(), (handle, sender));
     }
@@ -168,13 +165,15 @@ fn launch_cmd(threads: &mut HashMap<String,(thread::JoinHandle<()>, Sender<Cmd>)
     }
 }
 
+use task_master::tm_mod::TmStruct;
+
 fn main()
 {
     let args: Vec<String> = env::args().collect();
     let (option, filename) = parse_argv(&args);
-    println!("{}, {}", option, filename);
+    let tm = TmStruct::new(filename);
 
-    let map = launch_config(filename);
+    let map = launch_config(tm);
     //println!("map is {:#?}", map);
     let mut threads = lauch_processes(map);
     let mut con = Context::new();
