@@ -149,11 +149,11 @@ fn parse_cmd(line: &str) -> Option<(Cmd, String)> {
             None
         },
         "stop" => Some((Cmd::STOP, String::from(split[1]))),
-        /*"restart" => (Some(Cmd::RESTART),
-        "start" => (Some(Cmd::START),
-        "reload" => (Some(Cmd::RELOAD),
-        "status" => (Some(Cmd::STATUS),
-        "shutdown" => (Some(Cmd::SHUTDOWN),*/
+        "start" => Some((Cmd::START, String::from(split[1]))),
+        "restart" => Some((Cmd::RESTART, String::from(split[1]))),
+        "reload" => Some((Cmd::RELOAD, String::from(split[1]))),
+        "shutdown" => Some((Cmd::SHUTDOWN, String::from(split[1]))),
+        "status" => Some((Cmd::STATUS, String::from(split[1]))),
         _ => {
             println!("*** Unknown syntax: {:?}", line);
             None

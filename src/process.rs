@@ -162,11 +162,20 @@ use std::sync::mpsc::Receiver;
 use cmd::Cmd;
 
 #[derive(Debug)]
+enum State {
+    RUNNING,
+    BACKOFF,
+    STOPPED,
+    UNLAUNCHED,
+}
+
+#[derive(Debug)]
 pub struct Process {
     command: Command,
     config: Config,
     receiver: Receiver<Cmd>,
     child: Option<Child>,
+    state: State,
 }
 
 impl Process {
@@ -176,6 +185,7 @@ impl Process {
             config,
             receiver,
             child: None,
+            state: State::UNLAUNCHED,
         }
     }
     fn add_workingdir(&mut self) -> &mut Process {
@@ -221,7 +231,7 @@ impl Process {
         self
     }
 
-    pub fn spawn(&mut self) -> &mut Process {
+    fn spawn(&mut self) -> &mut Process {
         let child = self.command.spawn();
         if let Ok(child) = child {
             self.child = Some(child);
@@ -229,7 +239,7 @@ impl Process {
         self
     }
 
-    pub fn start(&mut self) -> &mut Process {
+    fn start(&mut self) -> &mut Process {
         self.add_args()
             .add_workingdir()
             .add_env()
@@ -237,7 +247,7 @@ impl Process {
             .add_stderr()
             .spawn()
     }
-    pub fn try_wait(&mut self) -> bool{ 
+    fn try_wait(&mut self) -> bool{ 
         if let Some(ref mut child) = self.child {
             match child.try_wait() {
 
@@ -246,8 +256,8 @@ impl Process {
                     match exit_status.code() {
                         Some(exit_status_code) => {
                             eprintln!("INFO exited: '{}' (exit status {}; expected)", 
-                                                             self.config.name, 
-                                                             exit_status_code);
+                                      self.config.name, 
+                                      exit_status_code);
                         }
                         None => {
                             eprintln!("INFO stopped: '{}' (terminated by SIGKILL) ", self.config.name);
@@ -263,7 +273,7 @@ impl Process {
     /// try launch the programe one time
     /// return after starttime if the program is still running
     /// or return if the program has exited before starttime
-    pub fn try_launch(&mut self) -> bool {
+    fn try_launch(&mut self) -> bool {
         let mut success = false;
         self.start();
         if let Some(ref mut child) = self.child {
@@ -314,7 +324,7 @@ impl Process {
     }
     /// call in loop try launch no more than startretries or
     /// until the program has started
-    pub fn try_execute(&mut self) -> bool {
+    fn try_execute(&mut self) -> bool {
         for nb_try in 0..self.config.startretries+1{
             println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
             if self.try_launch() {
@@ -323,18 +333,41 @@ impl Process {
         }
         false
     }
-    pub fn handle_cmd(&mut self, cmd: Cmd) {
-        if cmd == Cmd::STOP {
-            if let Some(ref mut child) = self.child {
-                match child.kill() {
-                    Ok(_) => {;}, 
-                    Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
-                }
+    fn stop(&mut self) {
+        if let Some(ref mut child) = self.child {
+            match child.kill() {
+                Ok(_) => {;}, 
+                Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
             }
         }
     }
+    fn status(& self) {
+            eprintln!("{}: {:?}", self.config.name, self.state);
+    }
+    fn handle_cmd(&mut self, cmd: Cmd) {
+        match cmd {
+            Cmd::STOP => {
+                self.stop();
+            },
+            Cmd::STATUS => { ;
+                self.status();
+            },
+            Cmd::START => { ;
+            },
+            Cmd::RESTART => { ;
+            },
+            Cmd::RELOAD => { ;
+            },
+            Cmd::SHUTDOWN => { ;
+            },
+        }
+    }
     pub fn manage_program(&mut self) {
-        self.try_execute();
+        if self.try_execute() {
+            self.state = State::RUNNING;
+        } else {
+            self.state = State::BACKOFF;
+        }
         loop {
             match self.receiver.try_recv() {
                 Ok(cmd) => {
