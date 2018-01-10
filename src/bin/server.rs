@@ -21,7 +21,6 @@ use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
 extern crate task_master;
 use task_master::process::Config;
 use task_master::process::Process;
-use task_master::process::execute_process;
 
 fn parse_argv (args: &[String]) -> (&str, &str)
 {
@@ -76,7 +75,8 @@ fn lauch_processes(map: HashMap<String,Config>) -> HashMap<String,(thread::JoinH
         let (sender, receiver) = channel();
         let clone_value = value.clone();
         let handle = thread::spawn(|| {
-            execute_process(Process::new(clone_value, receiver));
+            let mut process = Process::new(clone_value, receiver);
+            process.manage_program();
         });
         sender.send(Cmd::STOP);
         threads.insert(key.clone(), (handle, sender));
@@ -179,6 +179,8 @@ fn main()
     let mut threads = lauch_processes(map);
     let mut con = Context::new();
     loop {
+        use std::time::Duration;
+        thread::sleep(Duration::from_secs(2));
         let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
 
         if let Some((cmd, arg)) = parse_cmd(&res) {
