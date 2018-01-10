@@ -1,5 +1,4 @@
 extern crate yaml_rust;
-
 pub mod task_master {
     use std::collections::HashMap;
     pub mod process;
