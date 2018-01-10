@@ -159,6 +159,7 @@ use std::process::Command;
 use std::fs::File;
 use std::process::Child;
 use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender;
 use cmd::Cmd;
 
 #[derive(Debug)]
@@ -174,16 +175,18 @@ pub struct Process {
     command: Command,
     config: Config,
     receiver: Receiver<Cmd>,
+    sender: Sender<String>,
     child: Option<Child>,
     state: State,
 }
 
 impl Process {
-    pub fn new(config: Config, receiver: Receiver<Cmd>) -> Process {
+    pub fn new(config: Config, receiver: Receiver<Cmd>, sender: Sender<String>) -> Process {
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
             config,
             receiver,
+            sender,
             child: None,
             state: State::UNLAUNCHED,
         }
@@ -341,8 +344,8 @@ impl Process {
             }
         }
     }
-    fn status(& self) {
-            eprintln!("{}: {:?}", self.config.name, self.state);
+    fn status(&mut self) {
+        self.sender.send((format!("{}: {:?}", self.config.name, self.state)));
     }
     fn handle_cmd(&mut self, cmd: Cmd) {
         match cmd {

@@ -66,21 +66,24 @@ fn launch_config(filename: &str) -> HashMap<String,Config> {
 
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender;
+use std::sync::mpsc::Receiver;
 use std::thread;
 use task_master::cmd::Cmd;
 
-fn lauch_processes(map: HashMap<String,Config>) -> HashMap<String,(thread::JoinHandle<()>, Sender<Cmd>)>{
+fn lauch_processes(map: HashMap<String,Config>) -> (HashMap<String,(thread::JoinHandle<()>, Sender<Cmd>)>, Receiver<String>){
     let mut threads: HashMap<String,(thread::JoinHandle<()>, Sender<Cmd>)> = HashMap::new();
+    let (sender_to_main, receiver_from_threads) = channel();
     for (key, value) in map.iter() {
         let (sender, receiver) = channel();
         let clone_value = value.clone();
-        let handle = thread::spawn(|| {
-            let mut process = Process::new(clone_value, receiver);
+        let sender_to_main_clone = sender_to_main.clone();
+        let handle = thread::spawn(move || {
+            let mut process = Process::new(clone_value, receiver, sender_to_main_clone);
             process.manage_program();
         });
         threads.insert(key.clone(), (handle, sender));
     }
-    threads
+    (threads, receiver_from_threads)
 }
 
 extern crate liner;
@@ -177,10 +180,17 @@ fn main()
 
     let map = launch_config(filename);
     //println!("map is {:#?}", map);
-    let mut threads = lauch_processes(map);
+    let (mut threads, receiver) = lauch_processes(map);
     let mut con = Context::new();
     loop {
         thread::sleep(Duration::from_secs(2));
+
+        match receiver.try_recv() {
+            Ok(mess) => {
+                eprintln!("mess receive {}", mess);
+            },
+            Err(e) => { eprintln!("{:?}", e); },
+        }
         let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
 
         if let Some((cmd, arg)) = parse_cmd(&res) {
