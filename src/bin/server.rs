@@ -78,7 +78,6 @@ fn lauch_processes(map: HashMap<String,Config>) -> HashMap<String,(thread::JoinH
             let mut process = Process::new(clone_value, receiver);
             process.manage_program();
         });
-        sender.send(Cmd::STOP);
         threads.insert(key.clone(), (handle, sender));
     }
     threads

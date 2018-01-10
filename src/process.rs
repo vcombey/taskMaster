@@ -159,18 +159,18 @@ use std::process::Command;
 use std::fs::File;
 use std::process::Child;
 use std::sync::mpsc::Receiver;
-use cmd;
+use cmd::Cmd;
 
 #[derive(Debug)]
 pub struct Process {
     command: Command,
     config: Config,
-    receiver: Receiver<cmd::Cmd>,
+    receiver: Receiver<Cmd>,
     child: Option<Child>,
 }
 
 impl Process {
-    pub fn new(config: Config, receiver: Receiver<cmd::Cmd>) -> Process {
+    pub fn new(config: Config, receiver: Receiver<Cmd>) -> Process {
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
             config,
@@ -237,7 +237,23 @@ impl Process {
             .add_stderr()
             .spawn()
     }
-    
+    pub fn try_wait(&mut self) -> bool{ 
+        if let Some(ref mut child) = self.child {
+            match child.try_wait() {
+
+                /* le program has ended */
+                Ok(Some(exit_status)) => {
+                    let exit_status_code = exit_status.code().unwrap();
+                    eprintln!("INFO exited: '{}' (exit status {}; expected)", 
+                              self.config.name, 
+                              exit_status_code);
+                    return true;
+                },
+                _ => { return false;}
+            }
+        }
+        false
+    }
     /// try launch the programe one time
     /// return after starttime if the program is still running
     /// or return if the program has exited before starttime
@@ -263,7 +279,7 @@ impl Process {
                                       self.config.name, 
                                       exit_status_code);
 
-                        /* it is an expected ended */
+                            /* it is an expected ended */
                         } else {
                             success = true;
                             eprintln!("INFO exited: '{}' (exit status {}; expected)", 
@@ -294,21 +310,35 @@ impl Process {
     /// until the program has started
     pub fn try_execute(&mut self) -> bool {
         for nb_try in 0..self.config.startretries+1{
-        println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
+            println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
             if self.try_launch() {
                 return true ;
-           }
+            }
         }
         false
+    }
+    pub fn handle_cmd(&mut self, cmd: Cmd) {
+        if cmd == Cmd::STOP {
+             if let Some(ref mut child) = self.child {
+                 match child.kill() {
+                    Ok(_) => eprintln!("INFO stopped: '{}' (terminated by SIGKILL) ", self.config.name),
+                    Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
+                 }
+             }
+        }
     }
     pub fn manage_program(&mut self) {
         self.try_execute();
         loop {
             match self.receiver.try_recv() {
-                Ok(cmd) => { 
+                Ok(cmd) => {
                     eprintln!("INFO process '{}' receive {:?}", self.config.name, cmd);
+                    self.handle_cmd(cmd);
                 },
-                Err(e) => continue ,
+                Err(e) => { ; },
+            }
+            if self.try_wait() {
+                self.child = None;
             }
         }
     }
