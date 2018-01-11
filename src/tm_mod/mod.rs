@@ -17,13 +17,13 @@ pub mod cmd;
 use self::service::Service;
 use self::config::Config;
 
-pub struct TmStruct<'tm, 'sv, 'c> {
+pub struct TmStruct<'tm> {
     config_file: &'tm str,
-    service_hash: HashMap<&'sv str, service::Service<'c>>,
+    service_hash: HashMap<String, service::Service>,
 }
 
-impl<'tm, 'sv,'c> TmStruct<'tm, 'sv, 'c> {
-    pub fn new(config_file: &'tm str) -> TmStruct<'tm, 'sv, 'c> {
+impl<'tm> TmStruct<'tm> {
+    pub fn new(config_file: &'tm str) -> TmStruct<'tm> {
         TmStruct {
             config_file,
             service_hash: HashMap::new(),
@@ -51,7 +51,7 @@ impl<'tm, 'sv,'c> TmStruct<'tm, 'sv, 'c> {
         for (service, map) in map.into_iter() {
             let mut s = Service::new(service);
             s.launch_from_hash(map);
-           	self.service_hash.insert(&s.name, s);
+           	self.service_hash.insert(s.name.clone(), s);
         }
     }
 }

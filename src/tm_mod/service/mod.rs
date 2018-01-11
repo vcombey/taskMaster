@@ -10,13 +10,13 @@ use super::config::Config;
 use self::thread::process::Process;
 use self::thread::Thread;
 
-pub struct Service<'c> {
+pub struct Service {
     pub name: String,
-    thread_hash: HashMap<&'c str, Thread>,
+    thread_hash: HashMap<String, Thread>,
 }
 
-impl<'c> Service<'c> {
-    pub fn new(name: String) -> Service<'c> {
+impl Service {
+    pub fn new(name: String) -> Service {
         Service {
             name,
             thread_hash: HashMap::new(),
@@ -30,7 +30,7 @@ impl<'c> Service<'c> {
                 let mut process = Process::new(clone_config, receiver);
                 process.manage_program();
             });
-            self.thread_hash.insert(&name, Thread::new(config, handle, sender));
+            self.thread_hash.insert(name.clone(), Thread::new(config, handle, sender));
         }
     }
 }
