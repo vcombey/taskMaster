@@ -96,16 +96,27 @@ use std::time::Duration;
 use std::net::{TcpListener, TcpStream};
 use task_master::tcp;
 use task_master::cli::parse_cmd;
+use task_master::tcp::TcpTwoSide;
+use task_master::cli::CmdArgs;
 
 fn main()
 {
-    let listening_stream = TcpListener::bind("127.0.0.1:4242")
-        .unwrap();
+    //let listening_stream = TcpListener::bind("127.0.0.1:4242")
+     //   .unwrap();
+    let mut tcp_two_side = TcpTwoSide::new("127.0.0.1:8080", "127.0.0.1:8082");
+    let cmd: Option<CmdArgs> = tcp_two_side.receive();
+    if let Some(cmd) = cmd {
+        println!("cmd: {:?}", cmd);
+    }
+    else {
+        println!("cmd is none");
+    }
+
 
     //let emit_stream = TcpStream::connect("127.0.0.1:4242")
      //   .unwrap();
 
-    tcp::receive(listening_stream);
+    //tcp::receive(listening_stream);
 
    /* let args: Vec<String> = env::args().collect();
     let (option, filename) = parse_argv(&args);
