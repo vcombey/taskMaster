@@ -62,7 +62,7 @@ impl<'tm> TmStruct<'tm> {
         /// same name, and multiple process cannot have the same name EVEN
         /// ACROSS different services, and finally a process cannot have
         /// the same name a service does. 0 ambiguity allowed.
-        let doc = task_master.parse_config_file().unwrap();
+        let doc = self.parse_config_file().unwrap();
         let doc = &doc[0];
         let doc = doc.as_hash().unwrap();
 
@@ -86,10 +86,7 @@ impl<'tm> TmStruct<'tm> {
                     (Some(name), Some(argv)) => {
 
                         //  Check if a service/process with the same name aready exists
-                        if big_map.contains_key(name) {
-                            eprintln!("Cannot create process of the name '{}': a service of the same name already exists", name);
-                            panic!("Need to improve this server.c");
-                        } else if taken_process_names.contains(&name) {
+                        if taken_process_names.contains(&name) {
                             eprintln!("Cannot create process of the name '{}': a process of the same name already exists", name);
                             panic!("Need to improve this server.c");
                         }
@@ -105,9 +102,6 @@ impl<'tm> TmStruct<'tm> {
             //if let Some(_) = big_map.keys().find(|key| { key == &section_name}) {
             if big_map.contains_key(section_name) {
                 eprintln!("Cannot create service of the name '{}': a service of the same name already exists", section_name);
-                panic!("Need to improve this server.c");
-            } else if taken_process_names.contains(&section_name) {
-                eprintln!("Cannot create service of the name '{}': a process of the same name already exists", section_name);
                 panic!("Need to improve this server.c");
             }
             // Insert into big map
