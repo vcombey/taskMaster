@@ -33,33 +33,64 @@ fn parse_argv (args: &[String]) -> (&str, &str)
     (option, filename)
 }
 
-fn launch_config(task_master: TmStruct) -> HashMap<String,Config> {
-    // let mut f = File::open(filename).unwrap();
-
-    // let mut contents = String::new();
-
-    // f.read_to_string(&mut contents).unwrap();
-
-    // let docs = YamlLoader::load_from_str(&contents).unwrap();
+fn hash_config(task_master: &TmStruct) -> HashMap<String, HashMap<String,Config>> {
+    /// Reads the config file using TmStruct methods, and turns it
+    /// into a HashMap representing the structure of the services and
+    /// programm we need to launch. Multiple service cannot have the
+    /// same name, and multiple process cannot have the same name EVEN
+    /// ACROSS different services, and finally a process cannot have
+    /// the same name a service does. 0 ambiguity allowed.
     let doc = task_master.parse_config_file().unwrap();
     let doc = &doc[0];
+    let doc = doc.as_hash().unwrap();
 
-    assert!(!doc["programs"].is_badvalue());
+    let mut taken_process_names: Vec<String> = Vec::new();
 
-    let mut map = HashMap::new();
-    let program_section = &doc["programs"];
-    {
-        let hash = program_section.as_hash().unwrap();
-        for (name, config) in hash.iter() {
+
+    // Big map build
+    let mut big_map = HashMap::new();
+    for (section_name_yaml, section_yaml) in doc.iter() {
+        let section_name = section_name_yaml.as_str().unwrap();
+        let section_hash = section_yaml.as_hash().unwrap();
+
+        // Litle map build
+        let mut little_map = HashMap::new();
+        for (name, config) in section_hash.iter() {
             match (name.as_str(), config["cmd"].as_str()) {
                 (Some(name), None) => eprintln!("Missing command for process {}", name),
                 (None, Some(_)) => eprintln!("Missing process name"),
                 (None, None) => eprintln!("Missing both process name and command"),
-                (Some(name), Some(argv)) => {map.insert(String::from(name), Config::from_yaml(name, argv, config));},
+                (Some(name), Some(argv)) => {
+
+                    //  Check if a service/process with the same name aready exists
+                    if big_map.contains_key(name) {
+                        eprintln!("Cannot create process of the name '{}': a service of the same name already exists", name);
+                        panic!("Need to improve this server.c");
+                    } else if taken_process_names.contains(&String::from(name)) {
+                        eprintln!("Cannot create process of the name '{}': a process of the same name already exists", name);
+                        panic!("Need to improve this server.c");
+                    }
+
+                    // Insert into little map
+                    little_map.insert(String::from(name), Config::from_yaml(name, argv, config));
+                    taken_process_names.push(String::from(name));
+                },
             }
+
         }
+        // Check if a service / process with the same name already exists
+        if big_map.contains_key(section_name) {
+            eprintln!("Cannot create service of the name '{}': a service of the same name already exists", section_name);
+            panic!("Need to improve this server.c");
+        } else if taken_process_names.contains(&String::from(section_name)) {
+            eprintln!("Cannot create service of the name '{}': a process of the same name already exists", section_name);
+            panic!("Need to improve this server.c");
+        }
+
+        // Insert into big map
+        big_map.insert(String::from(section_name), little_map);
     }
-    return map;
+    return big_map;
 }
 
 use std::sync::mpsc::channel;
@@ -159,37 +190,32 @@ fn parse_cmd(line: &str) -> Option<(Cmd, String)> {
     }
 }
 
-fn launch_cmd(threads: &mut HashMap<String,(thread::JoinHandle<()>, Sender<Cmd>)>, cmd: Cmd, arg: String) {
-    if let Some(&(_, ref sender)) = threads.get(&arg) {
-        sender.send(cmd);
-    }
-}
-
 use task_master::tm_mod::TmStruct;
 
 fn main()
 {
     let args: Vec<String> = env::args().collect();
     let (option, filename) = parse_argv(&args);
-    let tm = TmStruct::new(filename);
+    let mut tm = TmStruct::new(filename);
 
-    let map = launch_config(tm);
+    let map = hash_config(&tm);
     //println!("map is {:#?}", map);
-    let mut threads = lauch_processes(map);
-    let mut con = Context::new();
+    // let mut threads = lauch_processes(map);
+    tm.launch_from_hash(map);
+    // let mut con = Context::new();
     loop {
-        use std::time::Duration;
-        thread::sleep(Duration::from_secs(2));
-        let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
+        // use std::time::Duration;
+        // thread::sleep(Duration::from_secs(2));
+        // let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
 
-        if let Some((cmd, arg)) = parse_cmd(&res) {
-            launch_cmd(&mut threads, cmd, arg);
-        }
-        if !res.is_empty() {
-            con.history.push(res.into()).unwrap();
-        }
+        // if let Some((cmd, arg)) = parse_cmd(&res) {
+        //     launch_cmd(&mut threads, cmd, arg);
+        // }
+        // if !res.is_empty() {
+        //     con.history.push(res.into()).unwrap();
+        // }
     }
     /*for (key, &(ref handle, ref sender)) in threads.iter() {
-      handle.join();
-      }*/
+    handle.join();
+}*/
 }
