@@ -1,4 +1,4 @@
-#[derive(Debug,PartialEq)]
+#[derive(Serialize, PartialEq, Deserialize, Debug)]
 pub enum Cmd {
     START,
     RESTART,

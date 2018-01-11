@@ -4,6 +4,12 @@ use cmd::Cmd;
 
 use self::liner::Context;
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CmdArgs {
+    cmd: Cmd,
+    args: String,
+}
+
 const HELP_START : &'static str = "
 start <name>		Start a process
 start <gname>:*		Start all processes in a group
@@ -47,7 +53,7 @@ default commands (type help <topic>):
 start  restart   stop  reload  status    shutdown
 ";
 
-pub fn parse_cmd(line: &str) -> Option<(Cmd, Vec<&str>)> {
+pub fn parse_cmd(line: &str) -> Option<CmdArgs> {
     let split: Vec<&str> = line.split(" ").collect();
     
     match split[0] {
@@ -64,8 +70,8 @@ pub fn parse_cmd(line: &str) -> Option<(Cmd, Vec<&str>)> {
                 other => println!("*** No help on {}", other),
             }
             None
-        },
-        "stop" => Some((Cmd::STOP, split[1..].to_vec())),//.iter().map(|s| String::from(*s)).collect())),
+        },/*
+        "stop" => Some((Cmd::STOP, split[1..].to_vec())),
         "start" => Some((Cmd::START, split[1..].to_vec())),
         "restart" => Some((Cmd::RESTART, split[1..].to_vec())),
         "reload" => Some((Cmd::RELOAD, split[1..].to_vec())),
@@ -74,6 +80,21 @@ pub fn parse_cmd(line: &str) -> Option<(Cmd, Vec<&str>)> {
         _ => {
             println!("*** Unknown syntax: {:?}", line);
             None
-        },
+        },*/
+        other => {
+            let args = split[1..].join(" ");
+            match other {
+                "stop" => Some(CmdArgs{cmd: Cmd::STOP, args: args}),//.iter().map(|s| String::from(*s)).collect())),
+                "start" => Some(CmdArgs{cmd: Cmd::START, args: args}),
+                "restart" => Some(CmdArgs{cmd: Cmd::RESTART, args: args}),
+                "reload" => Some(CmdArgs{cmd: Cmd::RELOAD, args: args}),
+                "shutdown" => Some(CmdArgs{cmd: Cmd::SHUTDOWN, args: args}),
+                "status" => Some(CmdArgs{cmd: Cmd::STATUS, args: args}),
+                _ => {
+                    println!("*** Unknown syntax: {:?}", line);
+                    None
+                },
+            }
+        }
     }
 }

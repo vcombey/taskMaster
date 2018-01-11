@@ -86,10 +86,6 @@ fn lauch_processes(map: HashMap<String,Config>) -> (HashMap<String,(thread::Join
     (threads, receiver_from_threads)
 }
 
-extern crate liner;
-
-use liner::Context;
-
 fn launch_cmd(threads: &mut HashMap<String,(thread::JoinHandle<()>, Sender<Cmd>)>, cmd: Cmd, arg: &str) {
     if let Some(&(_, ref sender)) = threads.get(arg) {
         sender.send(cmd);
@@ -111,7 +107,7 @@ fn main()
 
     tcp::receive(listening_stream);
 
-    let args: Vec<String> = env::args().collect();
+   /* let args: Vec<String> = env::args().collect();
     let (option, filename) = parse_argv(&args);
     println!("{}, {}", option, filename);
 
@@ -136,7 +132,7 @@ fn main()
         if !res.is_empty() {
             con.history.push(res.into()).unwrap();
         }
-    }
+    }*/
     /*for (key, &(ref handle, ref sender)) in threads.iter() {
       handle.join();
       }*/
