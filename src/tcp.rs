@@ -7,9 +7,39 @@ use serde_json;
 use cmd::Cmd;
 use cli::CmdArgs;
 
+pub struct TcpTwoSide {
+    listener: Option<TcpListener>,
+    emiter: Option<TcpStream>,
+}
+
+impl TcpTwoSide {
+    pub fn new(bind: &str, connect: &str) -> TcpTwoSide {
+        TcpTwoSide {
+            listener: {
+                match TcpListener::bind(bind) {
+                    Ok(listener) => listener,
+                    Err(e) => {eprintln!("{:?}", e); None},
+                }
+            },
+            emiter: {
+                match TcpStream::connect(connect) {
+                    Ok(emiter) => emiter,
+                    Err(e) => {eprintln!("{:?}", e); None},
+                }
+            },
+        }
+    }
+    pub fn emit<T>(&mut self, t: T)
+        where T: serde::Serialize + serde::export::fmt::Debug
+        {
+            println!("Before serialize, on the emit side : {:?}", t);
+            let serialized : String = serde_json::to_string(&t).unwrap();
+            self.emiter.write(&serialized.as_bytes());
+        }
+}
+
 pub fn emit<T>(stream: &mut TcpStream, t: T)
-    where T: serde::Serialize,
-          T: serde::export::fmt::Debug
+    where T: serde::Serialize + serde::export::fmt::Debug
 {
     println!("Before serialize, on the emit side : {:?}", t);
     let serialized : String = serde_json::to_string(&t).unwrap();
