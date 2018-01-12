@@ -32,7 +32,7 @@ pub struct Config {
     pub starttime: Duration,
     pub stopsignal: i64,
     pub stoptime: Duration,
-    pub numprocs: i64,
+    pub numprocs: usize,
 }
 
 
@@ -108,7 +108,7 @@ impl Config {
                 None => Duration::from_secs(10),
             },
             numprocs:  match numprocs {
-                Some(i) => i,
+                Some(i) => {assert!(i > 0); i as usize},
                 None => 1,
             },
         }

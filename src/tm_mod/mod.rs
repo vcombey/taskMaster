@@ -120,6 +120,7 @@ mod test {
 #[test]
     fn test_bad_file() {
     }
+#[test]
     fn test_bad_yaml() {
     }
 

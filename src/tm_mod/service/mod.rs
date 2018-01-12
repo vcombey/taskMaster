@@ -25,14 +25,21 @@ impl Service {
     }
     pub fn launch_from_hash(&mut self, map: HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
         for (name, config) in map.into_iter() {
-            let (sender, receiver) = mpsc::channel();
-            let clone_config = config.clone();
-            let clone_sender_to_main = sender_to_main.clone();
-            let handle = std_thread::spawn(move || {
-                let mut process = Process::new(clone_config, receiver, clone_sender_to_main);
-                process.manage_program();
-            });
-            self.thread_hash.insert(name.clone(), Thread::new(config, handle, sender));
+            println!("name: {}", name);
+            let mut handles = Vec::with_capacity(config.numprocs);
+            let mut senders = Vec::with_capacity(config.numprocs);
+            for i in 0..config.numprocs {
+                let (sender, receiver) = mpsc::channel();
+                let clone_config = config.clone();
+                let clone_sender_to_main = sender_to_main.clone();
+                let handle = std_thread::spawn(move || {
+                    let mut process = Process::new(clone_config, receiver, clone_sender_to_main);
+                    process.manage_program();
+                });
+                handles.push(handle);
+                senders.push(sender);
+            }
+            self.thread_hash.insert(name.clone(), Thread::new(config, handles, senders));
         }
     }
 }
