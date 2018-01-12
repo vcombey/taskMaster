@@ -1,31 +1,43 @@
 use std::process::Command;
 use std::fs::File;
 use std::process::Child;
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, Sender};
+use tm_mod::cmd::Cmd;
+use super::super::Config;
 use std::time::Instant;
-use super::super::super::config::Config;
-use super::super::super::cmd::Cmd;
+
+#[derive(Debug,PartialEq)]
+enum State {
+    RUNNING,
+    BACKOFF,
+    STOPPED,
+    UNLAUNCHED,
+}
 
 #[derive(Debug)]
 pub struct Process {
     command: Command,
     config: Config,
     receiver: Receiver<Cmd>,
+    sender: Sender<String>,
     child: Option<Child>,
+    state: State,
 }
 
 impl Process {
-    pub fn new(config: Config, receiver: Receiver<Cmd>) -> Process {
+    pub fn new(config: Config, receiver: Receiver<Cmd>, sender: Sender<String>) -> Process {
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
             config,
             receiver,
+            sender,
             child: None,
+            state: State::UNLAUNCHED,
         }
     }
     fn add_workingdir(&mut self) -> &mut Process {
         if let Some(ref string) = self.config.workingdir {
-            self.command.env("PWD", string);
+            self.command.current_dir(string);
         }
         self
     }
@@ -66,7 +78,7 @@ impl Process {
         self
     }
 
-    pub fn spawn(&mut self) -> &mut Process {
+    fn spawn(&mut self) -> &mut Process {
         let child = self.command.spawn();
         if let Ok(child) = child {
             self.child = Some(child);
@@ -74,7 +86,7 @@ impl Process {
         self
     }
 
-    pub fn start(&mut self) -> &mut Process {
+    fn start(&mut self) -> &mut Process {
         self.add_args()
             .add_workingdir()
             .add_env()
@@ -82,11 +94,33 @@ impl Process {
             .add_stderr()
             .spawn()
     }
-    
+    fn try_wait(&mut self) -> State{ 
+        if let Some(ref mut child) = self.child {
+            match child.try_wait() {
+
+                /* le program has ended */
+                Ok(Some(exit_status)) => {
+                    match exit_status.code() {
+                        Some(exit_status_code) => {
+                            eprintln!("INFO exited: '{}' (exit status {}; expected)", 
+                                      self.config.name, 
+                                      exit_status_code);
+                        }
+                        None => {
+                            eprintln!("INFO stopped: '{}' (terminated by SIGKILL) ", self.config.name);
+                        }
+                    }
+                    return State::BACKOFF;
+                },
+                _ => { return State::RUNNING;}
+            }
+        }
+        State::RUNNING
+    }
     /// try launch the programe one time
     /// return after starttime if the program is still running
     /// or return if the program has exited before starttime
-    pub fn try_launch(&mut self) -> bool {
+    fn try_launch(&mut self) -> bool {
         let mut success = false;
         self.start();
         if let Some(ref mut child) = self.child {
@@ -108,7 +142,7 @@ impl Process {
                                       self.config.name, 
                                       exit_status_code);
 
-                        /* it is an expected ended */
+                            /* it is an expected ended */
                         } else {
                             success = true;
                             eprintln!("INFO exited: '{}' (exit status {}; expected)", 
@@ -137,23 +171,56 @@ impl Process {
     }
     /// call in loop try launch no more than startretries or
     /// until the program has started
-    pub fn try_execute(&mut self) -> bool {
+    fn try_execute(&mut self) -> State {
         for nb_try in 0..self.config.startretries+1{
-        println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
+            println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
             if self.try_launch() {
-                return true ;
-           }
+                return State::RUNNING;
+            }
         }
-        false
+        State::BACKOFF
+    }
+    fn stop(&mut self) {
+        if let Some(ref mut child) = self.child {
+            match child.kill() {
+                Ok(_) => {;}, 
+                Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
+            }
+        }
+    }
+    fn status(&mut self) {
+        self.sender.send((format!("{}: {:?}", self.config.name, self.state)));
+    }
+    fn handle_cmd(&mut self, cmd: Cmd) {
+        match cmd {
+            Cmd::STOP => {
+                self.stop();
+            },
+            Cmd::STATUS => { ;
+                self.status();
+            },
+            Cmd::START => { ;
+            },
+            Cmd::RESTART => { ;
+            },
+            Cmd::RELOAD => { ;
+            },
+            Cmd::SHUTDOWN => { ;
+            },
+        }
     }
     pub fn manage_program(&mut self) {
-        self.try_execute();
+        self.state = self.try_execute();
         loop {
             match self.receiver.try_recv() {
-                Ok(cmd) => { 
+                Ok(cmd) => {
                     eprintln!("INFO process '{}' receive {:?}", self.config.name, cmd);
+                    self.handle_cmd(cmd);
                 },
-                Err(e) => continue ,
+                Err(_) => { ; },
+            }
+            if self.try_wait() == State::BACKOFF{
+                self.child = None;
             }
         }
     }

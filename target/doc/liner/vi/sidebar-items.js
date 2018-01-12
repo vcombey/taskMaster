@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Vi","Vi keybindings for `Editor`."]]});

@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["cmd",""],["config",""],["service",""]],"struct":[["TmStruct",""]]});
