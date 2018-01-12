@@ -1,6 +1,0 @@
-[package]
-name = "multithread_server"
-version = "0.1.0"
-authors = ["vcombey <vcombey@student.42.fr>"]
-
-[dependencies]
