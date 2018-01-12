@@ -1,4 +1,5 @@
 **/*.swp
 target/debug/*
 target/doc/*
+target
 .projectile
