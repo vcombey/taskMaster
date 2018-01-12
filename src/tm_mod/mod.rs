@@ -37,23 +37,19 @@ impl<'tm> TmStruct<'tm> {
     }
 
     /// Reads the content of the config file, and transforms it into a vector of Yaml struct.
-    pub fn parse_config_file(&'tm self) -> Result<Vec<Yaml>, String>{
-        let mut stream = match File::open(self.config_file) {
-            Ok(stream) => stream,
-            Err(_) => return Err(String::from("An error happened when opening the config file")),
-        };
+    pub fn parse_config_file(&'tm self) -> Vec<Yaml>{
+        let mut stream = File::open(self.config_file)
+            .expect("An error happened when opening the config file");
 
         let mut content = String::new();
-        if let Err(_) = stream.read_to_string(&mut content) {
-            return Err(String::from("An error happened when reading the content of config file"))
-        }
-        match YamlLoader::load_from_str(&content) {
-            Err(_) => return Err(String::from("An error happened when converting to YAML struct")),
-            Ok(yaml) => Ok(yaml),
-        }
+        stream.read_to_string(&mut content)
+            .expect("An error happened when reading the content of config file");
+
+        return YamlLoader::load_from_str(&content)
+            .expect("An error happened when converting to YAML struct");
     }
 
-    pub fn launch_from_hash(& mut self, map: HashMap<String, HashMap<String, Config>>) {
+    pub fn launch_from_hash(&mut self, map: HashMap<String, HashMap<String, Config>>) {
         for (service, map) in map.into_iter() {
             let mut s = Service::new(service);
             s.launch_from_hash(map, &mut self.sender_to_main);
@@ -68,50 +64,43 @@ impl<'tm> TmStruct<'tm> {
     /// ACROSS different services, and finally a process cannot have
     /// the same name a service does. 0 ambiguity allowed.
     pub fn hash_config(&self) -> HashMap<String, HashMap<String,Config>> {
-        let doc = self.parse_config_file().unwrap();
+        let doc = self.parse_config_file();
         let doc = &doc[0];
         let doc = doc.as_hash().unwrap();
 
-        /*pk ? pas check little map */
         let mut taken_process_names: Vec<&str> = Vec::new();
 
-
         // Big map build
-        let mut big_map = HashMap::new();
-        for (section_name_yaml, section_yaml) in doc.iter() {
-            let section_name = section_name_yaml.as_str().unwrap();
-            let section_hash = section_yaml.as_hash().unwrap();
+        let mut service_hash = HashMap::new();
+        for (service_name, service_yaml) in doc.iter() {
+            let service_name = service_name.as_str().unwrap();
+            let service_yaml = service_yaml.as_hash().unwrap();
 
             // Litle map build
-            let mut little_map = HashMap::new();
-            for (name, config) in section_hash.iter() {
-                match (name.as_str(), config["cmd"].as_str()) {
-                    (Some(name), None) => eprintln!("Missing command for process {}", name),
-                    (None, Some(_)) => eprintln!("Missing process name"),
-                    (None, None) => eprintln!("Missing both process name and command"),
-                    (Some(name), Some(argv)) => {
+            let mut process_map = HashMap::new();
+            for (process_name, process_config) in service_yaml.iter() {
+                let process_name = process_name.as_str()
+                    .expect(&format!("Missing command for process {:?}", process_name));
+                let argv = process_config["cmd"].as_str()
+                    .expect("Missing process name");
 
-                        //  Check if a service/process with the same name aready exists
-                        if taken_process_names.contains(&name) {
-                            eprintln!("Cannot create process of the name '{}': a process of the same name already exists", name);
-                            panic!("Need to improve this server.c");
-                        }
-
-                        // Insert into little map
-                        little_map.insert(String::from(name), Config::from_yaml(name, argv, config));
-                        taken_process_names.push(name);
-                    },
+                //  Check if a service/process with the same name aready exists
+                if taken_process_names.contains(&process_name) {
+                    panic!("Cannot create process of the name '{}': a process of the same name already exists", process_name);
                 }
+                // Insert into little map
+                process_map.insert(String::from(process_name),
+                                   Config::from_yaml(process_name, argv, process_config));
+                taken_process_names.push(process_name);
             }
             // Check if a service / process with the same name already exists
-            if big_map.contains_key(section_name) {
-                eprintln!("Cannot create service of the name '{}': a service of the same name already exists", section_name);
-                panic!("Need to improve this server.c");
+            if service_hash.contains_key(service_name) {
+                panic!("Cannot create service of the name '{}': a service of the same name already exists", service_name);
             }
             // Insert into big map
-            big_map.insert(String::from(section_name), little_map);
+            service_hash.insert(String::from(service_name), process_map);
         }
-        return big_map;
+        return service_hash;
     }
     pub fn receive_from_threads(&self) {
         loop {
@@ -123,4 +112,15 @@ impl<'tm> TmStruct<'tm> {
             }
         }
     }
+}
+
+
+#[cfg(test)]
+mod test {
+#[test]
+    fn test_bad_file() {
+    }
+    fn test_bad_yaml() {
+    }
+
 }
