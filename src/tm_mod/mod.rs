@@ -30,8 +30,8 @@ impl<'tm> TmStruct<'tm> {
         }
     }
 
-    pub fn parse_config_file(&'tm self) -> Result<Vec<Yaml>, String>{
         /// Reads the content of the config file, and transforms it into a vector of Yaml struct.
+    pub fn parse_config_file(&'tm self) -> Result<Vec<Yaml>, String>{
         let mut stream = match File::open(self.config_file) {
             Ok(stream) => stream,
             Err(_) => return Err(String::from("An error happened when opening the config file")),
@@ -55,13 +55,13 @@ impl<'tm> TmStruct<'tm> {
         }
     }
 
-    pub fn hash_config(&self) -> HashMap<String, HashMap<String,Config>> {
         /// Reads the config file using TmStruct methods, and turns it
         /// into a HashMap representing the structure of the services and
         /// programm we need to launch. Multiple service cannot have the
         /// same name, and multiple process cannot have the same name EVEN
         /// ACROSS different services, and finally a process cannot have
         /// the same name a service does. 0 ambiguity allowed.
+    pub fn hash_config(&self) -> HashMap<String, HashMap<String,Config>> {
         let doc = self.parse_config_file().unwrap();
         let doc = &doc[0];
         let doc = doc.as_hash().unwrap();

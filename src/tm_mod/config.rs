@@ -37,6 +37,9 @@ pub struct Config {
 
 
 impl Config {
+/// Function to generate a new instance of a Config strct.
+/// Only mandatory arguments are name and command.
+/// Other arguments can be skipped by giving `None' 
     pub fn new(name: &str,
                argv: &str, 
                workingdir: Option<&str>,
@@ -53,9 +56,6 @@ impl Config {
                stoptime: Option<i64>,
                numprocs: Option<i64>
               ) -> Config {
-        /// Function to generate a new instance of a Config strct.
-        /// Only mandatory arguments are name and command.
-        /// Other arguments can be skipped by giving `None' 
         Config {
             name:  String::from(name),
             argv:  String::from(argv),
@@ -113,10 +113,10 @@ impl Config {
             },
         }
     }
-    pub fn from_yaml(name: &str, argv: &str, config: &Yaml) -> Config {
         /// Creates a Config instance from the process name and a
         /// Yaml struct representing the config options. Parses
         /// YAML into variables and calls new.
+    pub fn from_yaml(name: &str, argv: &str, config: &Yaml) -> Config {
 
         // env is represented by a nested YAML into the current
         // config. Parsing it as a tuple of key, value.

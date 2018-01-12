@@ -4,3 +4,4 @@ extern crate serde_json;
 extern crate serde;
 extern crate yaml_rust;
 pub mod tm_mod;
+pub mod cli;

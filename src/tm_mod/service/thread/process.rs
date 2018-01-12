@@ -4,18 +4,18 @@ use std::process::Child;
 use std::sync::mpsc::Receiver;
 use std::time::Instant;
 use super::super::super::config::Config;
-use super::super::super::cmd::Cmd;
+use super::super::super::cmd::Instruction;
 
 #[derive(Debug)]
 pub struct Process {
     command: Command,
     config: Config,
-    receiver: Receiver<Cmd>,
+    receiver: Receiver<Instruction>,
     child: Option<Child>,
 }
 
 impl Process {
-    pub fn new(config: Config, receiver: Receiver<Cmd>) -> Process {
+    pub fn new(config: Config, receiver: Receiver<Instruction>) -> Process {
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
             config,
