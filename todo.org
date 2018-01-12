@@ -1,0 +1,92 @@
+* Task_master
+  Library :: task_master
+  Parent mod :: none
+  Mod name :: task_master
+  
+  Struct task_master {
+  config_file: String,
+  service_list:: HashMap<service_name: String, service: service::Service>>
+  config: &Yaml,
+  }
+  
+  impl task_master {
+  fn new (config_file: String) -> task_master {
+  }
+  
+  fn parse (&mut self) {
+  }
+  
+  fn reload (&mut self) {
+  }
+  
+** Cmd
+   Library :: task_master
+   Parent mod :: task_master
+   Mod name :: task_master
+   
+   enum Cmd {
+   //All different typ of availabe command
+   }
+   
+** Config
+   Library :: task_master
+   Parent mod :: task_master
+   Mod name :: config
+   
+   Struct Config {
+   // All fields of the config
+   }
+   
+   impl Ord for Config {
+   }
+   impl PartialEq for Config {
+   }
+   impl PartialOrd for Config {
+   }
+   
+** Service
+   Library :: task_master
+   Parent mod :: task_master
+   Mod name :: service
+   
+   Struct Service {
+   service_name: String,
+   config_hash: HashMap<String, Config>,
+   thread_list: HashMap<String, thread::Thread>,
+   config: &Yaml,
+   }
+   
+   impl Service {
+   fn new(config: &Yaml)
+   }
+   impl Ord for Config {
+   }
+   impl PartialEq for Config {
+   }
+   impl PartialOrd for Config {
+   }
+   
+*** Thread
+	Library : task_master
+	Parent mod : task_master::service
+	Mod name : thread
+	
+	Struct Thread {
+	sender: mpsc::sender,
+	config: Config,
+	sender_to_main: mpsc::sender,
+	}
+	
+	impl Thread {
+	fn new() Thread {
+	}
+	fn kill(&self) {
+	}
+	}
+	
+**** Process
+	 Library :: task_master
+	 Parent mod :: task_master::service::thread
+	 Mod name :: Process
+	 Process struct {
+	 }
