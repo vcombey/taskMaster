@@ -1,5 +1,11 @@
 **/*.swp
+<<<<<<< HEAD
 target/
 target/**
+=======
+target/debug/*
+target/doc/*
+target
+>>>>>>> parse
 .projectile
 

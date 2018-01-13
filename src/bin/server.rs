@@ -1,9 +1,9 @@
-use std::env;
-
 extern crate task_master;
+use std::env;
+use task_master::tm_mod::TmStruct;
 
-fn parse_argv (args: &[String]) -> (&str, &str)
-{
+
+fn parse_argv (args: &[String]) -> (&str, &str) {
     if args.len() < 3 {
         panic!("Not enough arguments");
     }
@@ -14,38 +14,6 @@ fn parse_argv (args: &[String]) -> (&str, &str)
     let filename = &args[2];
 
     (option, filename)
-}
-use task_master::tm_mod::TmStruct;
-use std::net::{TcpStream,TcpListener};
-use std::io::{Read, Write};
-
-pub fn receive(&mut TcpStream) -> Cmd {
-    let mut serialized = String::new();
-    let mut buffer = [0; 512];
-
-    stream.read(&mut buffer).unwrap();
-    return serde_json::from_str(&serialized).unwrap();
-}
-
-fn handle_connection(mut stream: TcpStream) {
-    let cmd = receive(&mut stream);
-
-    println!("received : {:?}", cmd);
-    let response = "HTTP/1.1 200 OK\r\n\r\n";
-
-    stream.write(response.as_bytes()).unwrap();
-    println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
-}
-
-fn server(port: &str)
-{
-    let listener = TcpListener::bind(port).unwrap();
-
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-
-        handle_connection(stream);
-    }
 }
 
 fn main()
@@ -58,7 +26,6 @@ fn main()
     let mut tm = TmStruct::new(filename);
 
     let map = tm.hash_config();
-    //println!("map is {:#?}", map);
     tm.launch_from_hash(map);
     loop {
     }

@@ -2,8 +2,6 @@ use std::process::Command;
 use std::fs::File;
 use std::process::Child;
 use std::sync::mpsc::{Receiver, Sender};
-use tm_mod::cmd::Cmd;
-use super::super::Config;
 use std::time::Instant;
 
 #[derive(Debug,PartialEq)]
@@ -13,19 +11,21 @@ enum State {
     STOPPED,
     UNLAUNCHED,
 }
+use tm_mod::config::Config;
+use tm_mod::cmd::Instruction;
 
 #[derive(Debug)]
 pub struct Process {
     command: Command,
     config: Config,
-    receiver: Receiver<Cmd>,
     sender: Sender<String>,
+    receiver: Receiver<Instruction>,
     child: Option<Child>,
     state: State,
 }
 
 impl Process {
-    pub fn new(config: Config, receiver: Receiver<Cmd>, sender: Sender<String>) -> Process {
+    pub fn new(config: Config, receiver: Receiver<Instruction>, sender: Sender<String>) -> Process {
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
             config,
@@ -191,21 +191,21 @@ impl Process {
     fn status(&mut self) {
         self.sender.send((format!("{}: {:?}", self.config.name, self.state)));
     }
-    fn handle_cmd(&mut self, cmd: Cmd) {
+    fn handle_cmd(&mut self, cmd: Instruction) {
         match cmd {
-            Cmd::STOP => {
+            Instruction::STOP => {
                 self.stop();
             },
-            Cmd::STATUS => { ;
+            Instruction::STATUS => { ;
                 self.status();
             },
-            Cmd::START => { ;
+            Instruction::START => { ;
             },
-            Cmd::RESTART => { ;
+            Instruction::RESTART => { ;
             },
-            Cmd::RELOAD => { ;
+            Instruction::RELOAD => { ;
             },
-            Cmd::SHUTDOWN => { ;
+            Instruction::SHUTDOWN => { ;
             },
         }
     }

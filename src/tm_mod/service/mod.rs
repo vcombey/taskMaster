@@ -28,7 +28,7 @@ impl Service {
             println!("name: {}", name);
             let mut handles = Vec::with_capacity(config.numprocs);
             let mut senders = Vec::with_capacity(config.numprocs);
-            for i in 0..config.numprocs {
+            for _i in 0..config.numprocs {
                 let (sender, receiver) = mpsc::channel();
                 let clone_config = config.clone();
                 let clone_sender_to_main = sender_to_main.clone();
