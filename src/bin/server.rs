@@ -1,9 +1,9 @@
-use std::env;
-
 extern crate task_master;
+use std::env;
+use task_master::tm_mod::TmStruct;
 
-fn parse_argv (args: &[String]) -> (&str, &str)
-{
+
+fn parse_argv (args: &[String]) -> (&str, &str) {
     if args.len() < 3 {
         panic!("Not enough arguments");
     }
@@ -15,7 +15,6 @@ fn parse_argv (args: &[String]) -> (&str, &str)
 
     (option, filename)
 }
-use task_master::tm_mod::TmStruct;
 
 fn main()
 {
@@ -26,7 +25,6 @@ fn main()
     let mut tm = TmStruct::new(filename);
 
     let map = tm.hash_config();
-    //println!("map is {:#?}", map);
     tm.launch_from_hash(map);
     loop {
     }
