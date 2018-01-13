@@ -31,30 +31,29 @@ pub fn receive(stream: &mut TcpStream) -> Cmd {
     let request = &buffer[..nb_bytes];
     println!("Request: {:?} {:?}", nb_bytes, String::from_utf8_lossy(request));
     return serde_json::from_str(&String::from_utf8_lossy(request)).unwrap();
-    //let mut serialized = String::new();
-    //stream.read(&mut buffer).unwrap();
-    //return serde_json::from_str(&String::from_utf8_lossy(&buffer[..])).unwrap();
 }
 
-fn handle_connection(mut stream: TcpStream) {
+fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) {
     let cmd = receive(&mut stream);
     //let mut buffer = [0; 512];
     //stream.read(&mut buffer).unwrap();
 
+    println!("Request: {:?}", cmd);
+//    tm.exec_cmd(cmd);
+
     let response = "HTTP/1.1 200 OK\r\n\r\n";
 
     stream.write(response.as_bytes()).unwrap();
-    println!("Request: {:?}", cmd);
 }
 
-fn server(port: &str)
+fn server(port: &str, tm: &mut TmStruct)
 {
     let listener = TcpListener::bind(port).unwrap();
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
-        handle_connection(stream);
+        handle_connection(stream, tm);
     }
 }
 
@@ -68,7 +67,7 @@ fn main()
 
     let map = tm.hash_config();
     tm.launch_from_hash(map);
-    server("127.0.0.1:8080");
+    server("127.0.0.1:8080", &mut tm);
     loop {
     }
 }

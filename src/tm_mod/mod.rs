@@ -18,6 +18,10 @@ pub mod cmd;
 use self::service::Service;
 use self::config::Config;
 
+use tm_mod::cmd::Target;
+use tm_mod::cmd::Cmd;
+use tm_mod::cmd::Instruction;
+
 pub struct TmStruct<'tm> {
     config_file: &'tm str,
     service_hash: HashMap<String, service::Service>,
@@ -35,6 +39,28 @@ impl<'tm> TmStruct<'tm> {
             sender_to_main,
         }
     }
+    /*
+    pub fn send_thread(&mut self, p_name: String, ins: Instruction) {
+        for (_, service) in self.service_hash.iter() {
+            service.send_thread(p_name, ins);
+        }
+    }
+    pub fn exec_cmd(&mut self, cmd: Cmd) {
+        let ins = cmd.instruction;
+        for target in cmd.target_vec.into_iter() {
+            match target {
+                ALL => { ;},
+                Target::Process(p_name) => {
+                    self.send_thread(p_name, ins);
+                },
+                Target::Service(s_name) => { ;},
+                Target::ServiceProcess((p_name, s_name)) => { ;},
+            }
+            for (service, map) in self.service_hash.iter() {
+            }
+        }
+    }
+    */
 
     /// Reads the content of the config file, and transforms it into a vector of Yaml struct.
     pub fn parse_config_file(&'tm self) -> Vec<Yaml>{
@@ -90,7 +116,7 @@ impl<'tm> TmStruct<'tm> {
                 }
                 // Insert into little map
                 process_map.insert(String::from(process_name),
-                                   Config::from_yaml(process_name, argv, process_config));
+                Config::from_yaml(process_name, argv, process_config));
                 taken_process_names.push(process_name);
             }
             // Check if a service / process with the same name already exists

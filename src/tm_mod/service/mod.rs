@@ -9,6 +9,7 @@ pub mod thread;
 use super::config::Config;
 use self::thread::process::Process;
 use self::thread::Thread;
+use tm_mod::cmd::Instruction;
 //use tm_mod::cmd::Cmd;
 
 pub struct Service {
@@ -23,6 +24,15 @@ impl Service {
             thread_hash: HashMap::new(),
         }
     }
+    /*
+    pub fn send_thread(&mut self, p_name: String, ins: Instruction) {
+        for (thread_name, thread) in self.thread_hash.iter() {
+            if &p_name == thread_name {
+                //thread.send(ins);
+            }
+        }
+    }
+    */
     pub fn launch_from_hash(&mut self, map: HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
         for (name, config) in map.into_iter() {
             println!("name: {}", name);

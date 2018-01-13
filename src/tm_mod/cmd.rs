@@ -27,8 +27,8 @@ pub enum Target {
 /// operation to launch and the targets to launch it onto.
 #[derive(PartialEq, Serialize, Deserialize, Debug)]
 pub struct Cmd {
-    instruction: Instruction,
-    target_vec: Vec<Target>,
+    pub instruction: Instruction,
+    pub target_vec: Vec<Target>,
 }
 
 impl Cmd {
