@@ -19,10 +19,18 @@ use task_master::tm_mod::TmStruct;
 use std::net::{TcpStream,TcpListener};
 use std::io::{Read, Write};
 
-fn handle_connection(mut stream: TcpStream) {
+pub fn receive(&mut TcpStream) -> Cmd {
+    let mut serialized = String::new();
     let mut buffer = [0; 512];
 
     stream.read(&mut buffer).unwrap();
+    return serde_json::from_str(&serialized).unwrap();
+}
+
+fn handle_connection(mut stream: TcpStream) {
+    let cmd = receive(&mut stream);
+
+    println!("received : {:?}", cmd);
     let response = "HTTP/1.1 200 OK\r\n\r\n";
 
     stream.write(response.as_bytes()).unwrap();
