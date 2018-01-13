@@ -3,15 +3,18 @@ extern crate liner;
 
 use liner::Context;
 use task_master::tm_mod::cmd::Cmd;
-use task_master::cli;
+use task_master::tm_mod::cmd::Instruction;
+use task_master::cli::*;
 
 
 fn parse_into_cmd(line: &str) -> Option<Cmd> {
-    let split = line.split(" ");
+    let mut split = line.split(" ");
 
-    match split.next() {
-        Some("help") => {
-            match split.next () {
+    let first = split.next()?;
+    match first
+    {
+        "help" => {
+            match split.next() {
                 Some(value) => match value {
                     "start" => println!("{}", HELP_START),
                     "restart" => println!("{}", HELP_RESTART),
@@ -19,28 +22,89 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
                     "reload" => println!("{}", HELP_RELOAD),
                     "status" => println!("{}", HELP_STATUS),
                     "shutdown" => println!("{}", HELP_SHUTDOWN),
-                    "" => println!("{}", HELP_DISPLAY),
+                    &_ => println!("no help for that"),
                 },
                 None => println!("{}", HELP_DISPLAY),
-            },
-            Some(_) => {
-                match Cmd::from_iterator(cmd, split) {
-                    Ok(cmd) => Some(cmd),
-                    Err(e) => {
-                        eprintln!("{}", e);
-                        None
-                    }
+            };
+            None
+        },
+        _ => {
+            match Cmd::from_line(line) {
+                Ok(cmd) => Some(cmd),
+                Err(e) => {
+                    eprintln!("{}", e);
+                    None
                 }
-            },
-            None => None
-        }
+            }
+        },
+    }
 
+    /*
+    */
+}
+
+#[cfg(test)]
+mod test {
+    use parse_into_cmd;
+    use task_master::tm_mod::cmd::Cmd;
+    use task_master::tm_mod::cmd::Instruction;
+    use task_master::tm_mod::cmd::Target;
+
+#[test]
+    fn cmd_vide() {
+        assert_eq!(parse_into_cmd(""), None);
+    }
+#[test]
+    fn help() {
+        assert_eq!(parse_into_cmd("help"), None);
+        assert_eq!(parse_into_cmd("help fsfsd"), None);
+        assert_eq!(parse_into_cmd("help status"), None);
+    }
+#[test]
+    fn one_cmd() {
+        let instruction_vect :Vec<(&str, Instruction)> = 
+            vec![("start" , Instruction::START),
+            ("restart" , Instruction::RESTART),
+            ("stop" , Instruction::STOP),
+            ("reload" , Instruction::RELOAD),
+            ("status" , Instruction::STATUS),
+            ("shutdown" , Instruction::SHUTDOWN)];
+
+        for (ins_str, ins) in instruction_vect {
+            assert_eq!(parse_into_cmd(&format!("{} {}", ins_str, "cmd1")), 
+                       Some(Cmd::new(ins, 
+                                     vec![Target::Process(String::from("cmd1"))])));
+
+            assert_eq!(parse_into_cmd(&format!("{} {}:{}", ins_str, "serv1", "cmd1")),
+                       Some(Cmd::new(ins,
+                          vec![Target::ServiceProcess(
+                              (String::from("serv1"), String::from("cmd1")))])));
+
+            assert_eq!(parse_into_cmd(&format!("{} {}:*", ins_str, "serv1")),
+                       Some(Cmd::new(ins,
+                          vec![Target::Service(
+                              String::from("serv1"))])));
+        
+            assert_eq!(parse_into_cmd(ins_str), 
+                   Some(Cmd::new(ins,
+                                 Vec::new())));
+        }
+    }
+#[test]
+    fn double_point() {
+        assert_eq!(parse_into_cmd(":::::::"), None);
+        assert_eq!(parse_into_cmd(":"), None);
+        assert_eq!(parse_into_cmd("lala:"), None);
+        assert_eq!(parse_into_cmd(":lala"), None);
     }
 }
 
 fn main() {
     let mut con = Context::new();
     loop {
-        let _res = con.read_line("task_master> ", &mut |_| {}).unwrap();
+        let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
+        let cmd = parse_into_cmd(&res);
+        //println!("{:?}", cmd);
+        con.history.push(res.into());
     }
 }
