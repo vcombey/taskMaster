@@ -42,6 +42,71 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
     /*
     */
 }
+use std::net::{TcpStream,TcpListener};
+use std::io::{Write, Read};
+
+#[macro_use]
+extern crate serde_derive;
+
+extern crate serde;
+extern crate serde_json;
+
+use serde::{Serialize, Serializer};
+
+fn emit<T>(stream: &mut TcpStream, t: T)
+    where T: serde::Serialize + serde::export::fmt::Debug
+{
+    println!("Before serialize, on the emit side : {:?}", t);
+    let serialized : String = serde_json::to_string(&t).unwrap();
+    stream.write(&serialized.as_bytes());
+    //stream.flush().unwrap();
+}
+
+/*impl TcpTwoSide {
+    pub fn new(bind: &str, connect: &str) -> TcpTwoSide {
+        TcpTwoSide {
+            listener: {
+                match TcpListener::bind(bind) {
+                    Ok(listener) => listener,
+                    Err(e) => {eprintln!("{:?}", e); None},
+                }
+            },
+            emiter: {
+                match TcpStream::connect(connect) {
+                    Ok(emiter) => emiter,
+                    Err(e) => {eprintln!("{:?}", e); None},
+                }
+            },
+        }
+    }
+    pub fn emit<T>(&mut self, t: T)
+        where T: serde::Serialize + serde::export::fmt::Debug
+        {
+            println!("Before serialize, on the emit side : {:?}", t);
+            let serialized : String = serde_json::to_string(&t).unwrap();
+            self.emiter.write(&serialized.as_bytes());
+        }
+}
+
+
+}
+*/
+
+fn main() {
+    let mut con = Context::new();
+    loop {
+        let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
+        let cmd = parse_into_cmd(&res);
+        //println!("{:?}", cmd);
+        con.history.push(res.into());
+        let mut buffer = String::new();
+        let mut stream = TcpStream::connect("127.0.0.1:8080").unwrap();
+        //let _ = stream.write(b"lalala");
+        emit(&mut stream, cmd);
+        let _ = stream.read_to_string(&mut buffer);
+        println!("message get{}", buffer);
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -76,18 +141,18 @@ mod test {
                                      vec![Target::Process(String::from("cmd1"))])));
 
             assert_eq!(parse_into_cmd(&format!("{} {}:{}", ins_str, "serv1", "cmd1")),
-                       Some(Cmd::new(ins,
+            Some(Cmd::new(ins,
                           vec![Target::ServiceProcess(
                               (String::from("serv1"), String::from("cmd1")))])));
 
             assert_eq!(parse_into_cmd(&format!("{} {}:*", ins_str, "serv1")),
-                       Some(Cmd::new(ins,
+            Some(Cmd::new(ins,
                           vec![Target::Service(
                               String::from("serv1"))])));
-        
+
             assert_eq!(parse_into_cmd(ins_str), 
-                   Some(Cmd::new(ins,
-                                 Vec::new())));
+                       Some(Cmd::new(ins,
+                                     Vec::new())));
         }
     }
 #[test]
@@ -99,12 +164,3 @@ mod test {
     }
 }
 
-fn main() {
-    let mut con = Context::new();
-    loop {
-        let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
-        let cmd = parse_into_cmd(&res);
-        //println!("{:?}", cmd);
-        con.history.push(res.into());
-    }
-}
