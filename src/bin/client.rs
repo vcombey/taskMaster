@@ -25,16 +25,14 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
                 None => {println!("{}", cli::HELP_DISPLAY);None},
             }
         },
+        Some(&"") | Some(&"\n") => None,
         Some(_) => {
             match Cmd::from_vec(line) {
-                Some(ret) => match ret {
-                    Ok(cmd) => Some(cmd),
-                    Err(e) => {
-                        eprintln!("{}", e);
-                        None
-                    }
-                },
-                None => None,
+                Ok(cmd) => Some(cmd),
+                Err(e) => {
+                    eprintln!("{}", e);
+                    None
+                }
             }
         },
         None => None,

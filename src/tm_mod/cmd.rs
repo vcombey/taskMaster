@@ -41,38 +41,32 @@ impl Cmd {
     }
 
     /// Create a command from a vector of string.
-    pub fn from_vec(word_list: Vec<&str>) -> Option<Result<Cmd, String>> {
-        let instruction = match word_list.get(0) {
-            Some(value) => {
-                match *value {
-                    "start" => Instruction::START,
-                    "restart" => Instruction::RESTART,
-                    "stop" => Instruction::STOP,
-                    "reload" => Instruction::RELOAD,
-                    "status" => Instruction::STATUS,
-                    "shutdown" => Instruction::SHUTDOWN,
-                    "" => return None,
-                    value => return Some(Err(format!("Unvalid command '{}'\n{}", value, cli::HELP_DISPLAY))),
-                }
-            },
-            None => return None,
-        };
-        let mut target_vec = Vec::new();
-        if instruction != Instruction::SHUTDOWN {
-            match word_list.get(1..) {
-                Some(target_slice) => { 
-                    for target in target_slice.iter() {
-                        target_vec.push(Target::from_str(*target).unwrap());
-                    }
-                },
-                None => return Some(Err(format!("Missing target"))),
-                // Some(["", ..]) => return Err(format!("Missing target")),
+    pub fn from_vec(word_list: Vec<&str>) -> Result<Cmd, String> {
+        let mut instruction = Instruction::SHUTDOWN; // Default init. Add an empty state to the enum ?
+        if let Some(value) = word_list.get(0) {
+			instruction = match *value {
+                "start" => Instruction::START,
+                "restart" => Instruction::RESTART,
+                "stop" => Instruction::STOP,
+                "reload" => Instruction::RELOAD,
+                "status" => Instruction::STATUS,
+                "shutdown" => Instruction::SHUTDOWN,
+                value => return Err(format!("Unvalid command '{}'\n{}", value, cli::HELP_DISPLAY)),
             }
-        };
-        Some(Ok(Cmd {
-            instruction,
-            target_vec,
-        }))
+        }
+        let mut target_vec: Vec<Target> = Vec::new();
+        if instruction != Instruction::SHUTDOWN {
+            if let Some(target_slice) = word_list.get(1..) {
+                for target in target_slice.iter() {
+                    let ret = Target::from_str(*target)?;
+                    target_vec.push(ret);
+                }
+            } else {
+                return Err("Missing target".to_string());
+            }
+            // Some(["", ..]) => return Err(format!("Missing target")),
+        }
+        Ok(Cmd {instruction, target_vec,})
     }
 }
 
@@ -83,27 +77,24 @@ impl Target {
         if chunk.contains(":") { // The string is potentially under the form service:process
             // Extract the service, and then the process.
             let mini_vec: Vec<&str>= chunk.split(":").collect();
+            eprintln!("{:?}", mini_vec);
             let service = match mini_vec.get(0) { // Service
-                Some(service) => service.to_string(),
-                None => return Err(format!("Missing service name. Type \"help\" to see different commands and syntaxs")),
+                Some(service) => service,
+                None => return Err(format!("Missing service name. Type 'help' to see different commands and syntaxs")),
             };
             let process = match mini_vec.get(1) { // Process
-                Some(process_name) => process_name.to_string(),
-                None => return Err(format!("Missing process name. Type \"help\" to see different commands and syntaxs")),
+                Some(process_name) => process_name,
+                None => return Err("Missing process name. Type 'help' to see different commands and syntaxs".to_string()),
             };
             if let Some(val) = mini_vec.get(2) { // Making sure there isnt an invalid syntax like service:process:invalid
                 if *val != "" {
-                    return Err(format!("Process is the bottom level of the hierarchy: Do not add ':' after a process"));
+                    return Err("Process is the bottom level of the hierarchy: Do not add ':' after a process".to_string());
                 }
             }
-            // THIS NEEDS TO CHANGE ASAP
-            let str1 = String::from("");
-            let str2 = String::from("*");
-
             match (service, process) {
-                (service_name, str1) => Err(format!("Missing process name. Type \"help\" to see different commands and syntaxs")), // No process name
-                (service_name, str2) => Ok(Target::Service(service_name)), // ALL with *
-                (service_name, process_name) => Ok(Target::ServiceProcess((service_name, process_name))),
+                (service_name, &"") => Err("Missing process name. Type 'help' to see different commands and syntaxs".to_string()), // No process name
+                (service_name, &"*") => Ok(Target::Service(service_name.to_string())), // ALL with *
+                (service_name, process_name) => Ok(Target::ServiceProcess((service_name.to_string(), process_name.to_string()))),
             }
         } else {
             match chunk {
@@ -113,34 +104,184 @@ impl Target {
         }
     }
 }
+
 #[cfg(test)]
 pub mod test_cmd {
     use super::*;
 
     #[test]
     fn test_eq_instruction_r() {
-        let cmd_1 = Cmd {
+        assert_eq!(Cmd {
             instruction: Instruction::START,
             target_vec: vec![Target::ALL],
-        };
-        let cmd_2 = Cmd {
-            instruction: Instruction::START,
-            target_vec: vec![Target::ALL],
-        };
-        assert_eq!(cmd_1, cmd_2);
+        },
+                   Cmd {
+                       instruction: Instruction::START,
+                       target_vec: vec![Target::ALL],
+                   });
     }
 
     #[test]
-    /// Verying different instructions result in the Cmd not being evaluated as equals
     fn test_ne_instruction_w() { 
-        let cmd_1 = Cmd {
+        assert_ne!(Cmd {
             instruction: Instruction::SHUTDOWN,
             target_vec: vec![Target::ALL],
-        };
-        let cmd_2 = Cmd {
+        },
+                   Cmd {
+                       instruction: Instruction::START,
+                       target_vec: vec![Target::ALL],
+                   });
+    }
+
+    #[test]
+    fn test_eq_targets_r() {
+        assert_eq!(Cmd {
             instruction: Instruction::START,
-            target_vec: vec![Target::ALL],
-        };
-        assert_ne!(cmd_1, cmd_2);
+            target_vec: vec![Target::Process(String::from("Lorem ipsum"))],
+        },
+                   Cmd {
+                       instruction: Instruction::START,
+                       target_vec: vec![Target::Process(String::from("Lorem ipsum"))],
+                   });
+    }
+
+    #[test]
+    fn test_ne_targets_w() {
+        assert_ne!(Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::Process(String::from("Lorem ipsum"))],
+        },
+                   Cmd {
+                       instruction: Instruction::START,
+                       target_vec: vec![Target::Service(String::from("Lorem ipsum"))],
+                   });
+    }
+
+    #[test]
+    fn test_ne_targets_diff_str_w() {
+        assert_ne!(Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::Service(String::from("Lorem"))],
+        },
+                   Cmd {
+                       instruction: Instruction::START,
+                       target_vec: vec![Target::Service(String::from("Lorem ipsum"))],
+                   });
+    }
+
+    #[test]
+    fn test_cmd_simple_process_r() {
+        assert_eq!(Cmd::from_vec(vec!["start", "process_name"]).unwrap(),
+                   Cmd {
+                       instruction: Instruction::START,
+                       target_vec: vec![Target::Process("process_name".to_string())],
+                   });
+    }
+
+    #[test]
+    fn test_cmd_simple_process_w() {
+        assert_ne!(Cmd::from_vec(vec!["start", "process_name"]).unwrap(),
+                   Cmd {
+                       instruction: Instruction::START,
+                       target_vec: vec![Target::Service("process_name".to_string())],
+                   });
+    }
+
+    #[test]
+    fn test_cmd_no_process_name() {
+        println!("{:?}", Cmd::from_vec(vec!["start", "service_name:"]));
+        assert_eq!(Cmd::from_vec(vec!["start", "service_name:"]), Err("Missing process name. Type 'help' to see different commands and syntaxs".to_string()));
+    }
+
+    #[test]
+    fn test_cmd_simple_service_process() {
+        assert_eq!(Cmd::from_vec(vec!["start","service_name:process_name"]).unwrap(),
+                   Cmd {
+                       instruction: Instruction::START,
+                       target_vec: vec![Target::ServiceProcess(("service_name".to_string() ,"process_name".to_string()))],
+                   });
+    }
+
+    #[test]
+    fn test_cmd_many_process() {
+        assert_eq!(Cmd::from_vec(vec!["start","process_one", "process_two"]).unwrap(),
+                   Cmd {
+                       instruction: Instruction::START,
+                       target_vec: vec![Target::Process("process_one".to_string()), Target::Process("process_two".to_string())],
+                   });
+    }
+
+    #[test]
+    fn test_cmd_all() {
+        assert_eq!(Cmd::from_vec(vec!["start","all"]).unwrap(),
+                   Cmd {
+                       instruction: Instruction::START,
+                       target_vec: vec![Target::ALL],
+                   });
+    }
+
+    #[test]
+    fn test_cmd_too_many_level() {
+        assert_eq!(Cmd::from_vec(vec!["start","1:2:3"]), Err("Process is the bottom level of the hierarchy: Do not add ':' after a process".to_string()));
+    }
+
+    #[test]
+    fn test_cmd_mix() {
+        eprintln!("{:?}", Cmd::from_vec(vec!["start","process_one", "service_one:process_two"]));
+        assert_eq!(Cmd::from_vec(vec!["start","process_one", "service_one:process_two"]).unwrap(),
+                   Cmd {
+                       instruction: Instruction::START,
+                       target_vec: vec![Target::Process("process_one".to_string()), Target::ServiceProcess(("service_one".to_string(), "process_two".to_string()))],
+                   });
     }
 }
+
+//     #[test]
+//     fn cmd_empty() {
+//         assert_eq!(parse_into_cmd(""), None);
+//     }
+//     #[test]
+//     fn help() {
+//         assert_eq!(parse_into_cmd("help"), None);
+//         assert_eq!(parse_into_cmd("help fsfsd"), None);
+//         assert_eq!(parse_into_cmd("help status"), None);
+//     }
+//     #[test]
+//     fn one_cmd() {
+//         let instruction_vect :Vec<(&str, Instruction)> = 
+//             vec![("start" , Instruction::START),
+//                  ("restart" , Instruction::RESTART),
+//                  ("stop" , Instruction::STOP),
+//                  ("reload" , Instruction::RELOAD),
+//                  ("status" , Instruction::STATUS),
+//                  ("shutdown" , Instruction::SHUTDOWN)];
+
+//         for (ins_str, ins) in instruction_vect {
+//             assert_eq!(parse_into_cmd(&format!("{} {}", ins_str, "cmd1")), 
+//                        Some(Cmd::new(ins, 
+//                                      vec![Target::Process(String::from("cmd1"))])));
+
+//             assert_eq!(parse_into_cmd(&format!("{} {}:{}", ins_str, "serv1", "cmd1")),
+//                        Some(Cmd::new(ins,
+//                                      vec![Target::ServiceProcess(
+//                                          (String::from("serv1"), String::from("cmd1")))])));
+
+//             assert_eq!(parse_into_cmd(&format!("{} {}:*", ins_str, "serv1")),
+//                        Some(Cmd::new(ins,
+//                                      vec![Target::Service(
+//                                          String::from("serv1"))])));
+
+//             assert_eq!(parse_into_cmd(ins_str), 
+//                        Some(Cmd::new(ins,
+//                                      Vec::new())));
+//         }
+//     }
+//     #[test]
+//     fn double_point() {
+//         assert_eq!(parse_into_cmd(":::::::"), None);
+//         assert_eq!(parse_into_cmd(":"), None);
+//         assert_eq!(parse_into_cmd("lala:"), None);
+//         assert_eq!(parse_into_cmd(":lala"), None);
+//     }
+// }
+
