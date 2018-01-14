@@ -8,7 +8,7 @@ pub enum ExecError {
     /// No service with that name
     ServiceName(String),
     /// Sending to thread error
-    Sending((String, String, i32)),
+    Sending((String, usize)),
 }
 
 
@@ -17,8 +17,8 @@ impl ExecError {
         match *self {
             ExecError::ProcessName(name) => &format!("no process with name {}", name),
             ExecError::ServiceName(name) => &format!("no service with name {}", name),
-            ExecError::Sending((s_name, p_name, thread_id)) => 
-                &format!("problem while sending to {}:{} to thread id {}", s_name, p_name, thread_id),
+            ExecError::Sending((p_name, thread_id)) => 
+                &format!("problem while sending to {} to thread id {}", p_name, thread_id),
         }
     }
 }

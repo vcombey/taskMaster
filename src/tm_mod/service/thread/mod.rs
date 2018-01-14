@@ -3,6 +3,8 @@ use super::super::config::Config;
 use std::sync::mpsc::Sender;
 use std::thread::JoinHandle;
 use super::super::cmd::Instruction;
+use tm_mod::exec_error::ExecErrors;
+use tm_mod::exec_error::ExecError;
 
 #[derive(Debug)]
 pub struct Thread {
@@ -20,16 +22,11 @@ impl Thread {
         }
     }
     pub fn send(&self, ins: Instruction) -> Result<(), ExecErrors> {
-        let mut res: Result<(), String> = Ok(());
-        for (i, sender) in self.sender.iter().enumerate() {
-            let e = sender.send(ins).map_err(|_| format!("pb in sending to the thread no {}\n", i)).err();
-            if let Some(e) = e {
-                res = match res {
-                    Ok(_) => Err(e),
-                    Err(o) => Err(format!("{}{}", o, e)),
-                }
-            }
-        }
-        res
+        
+        let e: Vec<ExecError> = self.sender.iter().enumerate().filter_map(|(i, s)| {
+            s.send(ins).map_err(|_| ExecError::Sending((self.config.name, i))).err()
+        })
+        .collect();
+        Err(ExecErrors{ e_vect: e})
     }
 }
