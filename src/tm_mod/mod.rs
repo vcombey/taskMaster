@@ -44,19 +44,25 @@ impl<'tm> TmStruct<'tm> {
         }
     }
 
-    /*
-    fn send_to_process(&self, p_name: &str, ins: Instruction) {
+    
+    fn send_to_process(&self, p_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
         for (_, service) in self.service_hash.iter() {
-            service.send_to_process(p_name, ins);
+            if service.contains_process(p_name) {
+                return service.send_to_process(p_name, ins);
+            }
         }
+        ExecErrors::result_from_e_vec(vec![ExecError::ProcessName(String::from(p_name))])
     }
     
-    fn send_to_all_service(&self, p_name: &str, ins: Instruction) {
-        for (_, service) in self.service_hash.iter() {
-            service.send_to_all_process(ins);
-        }
+    fn send_to_all_service(&self, ins: Instruction) -> Result<(), ExecErrors> {
+        let e: Vec<ExecError> = self.service_hash.values()
+            .filter_map(|s| s.send_to_all_process(ins).err())
+            .flat_map(|e| e.e_vect.into_iter())
+            .collect();
+
+        ExecErrors::result_from_e_vec(e)
     }
-*/
+
     fn send_to_service(&self, s_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
         let service = self.service_hash.get(s_name)
             .ok_or(ExecError::ServiceName(String::from(s_name)));
@@ -64,27 +70,31 @@ impl<'tm> TmStruct<'tm> {
         service.map_err(|e| ExecErrors{e_vect: vec![e]})
             .and_then(|s| s.send_to_all_process(ins))
     }
-/*
-    fn send_to_service_process(&self, s_name: &str, p_name: &str, ins: Instruction) -> Result<(), String> {
+
+    fn send_to_service_process(&self, s_name: &str, p_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
         let service = self.service_hash.get(s_name)
-            .ok_or(String::from("no service with that name"));
-        service.and_then(|s| s.send_to_process(p_name, ins))
+            .ok_or(ExecError::ServiceName(String::from(s_name)));
+
+        service.map_err(|e| ExecErrors{e_vect: vec![e]})
+            .and_then(|s| s.send_to_process(p_name, ins))
     }
-*/
+
     pub fn exec_cmd(&mut self, cmd: Cmd) {
         let ins = cmd.instruction;
         for target in cmd.target_vec.into_iter() {
             //    println!("target {:?}", target);
             match target {
-                Target::ALL => { ;},
+                Target::ALL => { 
+                    self.send_to_all_service(ins).map_err(|e| println!("error is: {}",e));
+                    },
                 Target::Process(p_name) => {
-                    //self.send_to_process(&p_name, ins)/*.map_err(|e| println!("{}",e))*/;
+                    self.send_to_process(&p_name, ins).map_err(|e| println!("{}",e));
                 },
                 Target::Service(s_name) => {
                     self.send_to_service(&s_name, ins).map_err(|e| println!("error is: {}",e));
                     ;},
                 Target::ServiceProcess((s_name, p_name)) => {
-                    //self.send_to_service_process(&s_name, &p_name, ins).map_err(|e| println!("{}",e));
+                    self.send_to_service_process(&s_name, &p_name, ins).map_err(|e| println!("error is: {}",e));
                 },
             }
         }

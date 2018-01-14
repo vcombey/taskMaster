@@ -27,11 +27,6 @@ impl Thread {
         })
         .collect();
 
-        if e.is_empty() {
-            return Ok(());
-        }
-        else {
-            return Err(ExecErrors{e_vect: e});
-        }
+        ExecErrors::result_from_e_vec(e)
     }
 }

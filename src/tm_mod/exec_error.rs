@@ -1,4 +1,4 @@
-use std::fmt::*;
+use std::fmt;
 use std::error;
 use std::error::Error;
 
@@ -23,8 +23,8 @@ impl error::Error for ExecError {
     }
 }
 
-impl Display for ExecError {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+impl fmt::Display for ExecError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ExecError::ProcessName(ref name) => write!(f, "{} {}", self.description(), name),
             ExecError::ServiceName(ref name) => write!(f, "{} {}", self.description(), name),
@@ -46,10 +46,21 @@ impl error::Error for ExecErrors {
     }
 }
 
-impl Display for ExecErrors {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+impl fmt::Display for ExecErrors {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         //&self.e_vect.iter().map(|x| x.__description()).collect().join("")
         let message = self.e_vect.iter().fold(String::new(), |acc, x| format!("{}{}", acc, x));
         write!(f, "{}", message)
+    }
+}
+
+impl ExecErrors {
+    pub fn result_from_e_vec(e: Vec<ExecError>) -> Result<(), ExecErrors> {
+        if e.is_empty() {
+            return Ok(());
+        }
+        else {
+            return Err(ExecErrors{e_vect: e});
+        }
     }
 }
