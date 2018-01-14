@@ -81,7 +81,7 @@ impl<'tm> TmStruct<'tm> {
                     //self.send_to_process(&p_name, ins)/*.map_err(|e| println!("{}",e))*/;
                 },
                 Target::Service(s_name) => {
-                    self.send_to_service(&s_name, ins).map_err(|e| println!("{}",e));
+                    self.send_to_service(&s_name, ins).map_err(|e| println!("error is: {}",e));
                     ;},
                 Target::ServiceProcess((s_name, p_name)) => {
                     //self.send_to_service_process(&s_name, &p_name, ins).map_err(|e| println!("{}",e));

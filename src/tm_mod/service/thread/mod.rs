@@ -26,6 +26,12 @@ impl Thread {
             s.send(ins).map_err(|_| ExecError::Sending((self.config.name.clone(), i))).err()
         })
         .collect();
-        Err(ExecErrors{ e_vect: e})
+
+        if e.is_empty() {
+            return Ok(());
+        }
+        else {
+            return Err(ExecErrors{e_vect: e});
+        }
     }
 }
