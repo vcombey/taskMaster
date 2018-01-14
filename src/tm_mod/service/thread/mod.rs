@@ -10,14 +10,14 @@ use tm_mod::exec_error::ExecError;
 pub struct Thread {
     config: Config,
     sender: Vec<Sender<Instruction>>,
-    join_handle: Vec<JoinHandle<()>>,
+    join_handle: Option<Vec<JoinHandle<()>>>,
 }
 
 impl Thread {
     pub fn new(config: Config, join_handle: Vec<JoinHandle<()>>, sender: Vec<Sender<Instruction>>) -> Thread {
         Thread {
             config,
-            join_handle,
+            join_handle: Some(join_handle),
             sender,
         }
     }
@@ -28,5 +28,22 @@ impl Thread {
         .collect();
 
         ExecErrors::result_from_e_vec(e)
+    }
+}
+
+impl Drop for Thread {
+    fn drop(&mut self) {
+        println!("Sending terminate message to all workers.");
+
+        self.send(Instruction::SHUTDOWN);
+
+        println!("Shutting down all workers.");
+
+        if let Some(join_handle) = self.join_handle.take() {
+            for (i, j_h) in join_handle.into_iter().enumerate() {
+                println!("Shutting down worker {}", i);
+                j_h.join().unwrap();
+            }
+        }
     }
 }

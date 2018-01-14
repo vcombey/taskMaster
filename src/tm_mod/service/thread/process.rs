@@ -213,9 +213,12 @@ impl Process {
         self.state = self.try_execute();
         loop {
             match self.receiver.try_recv() {
-                Ok(cmd) => {
-                    eprintln!("INFO process '{}' receive {:?}", self.config.name, cmd);
-                    self.handle_cmd(cmd);
+                Ok(ins) => {
+                    eprintln!("INFO process '{}' receive {:?}", self.config.name, ins);
+                    if ins == Instruction::SHUTDOWN {
+                        break ;
+                    }
+                    self.handle_cmd(ins);
                 },
                 Err(_) => { ; },
             }

@@ -89,7 +89,6 @@ impl<'tm> TmStruct<'tm> {
             }.err()
         }).flat_map(|e| e.e_vect.into_iter())
         .collect();
-
         ExecErrors::result_from_e_vec(e)//.map_err(|e| println!("error is: {}",e));
     }
 

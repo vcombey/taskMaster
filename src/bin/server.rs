@@ -2,6 +2,7 @@ extern crate task_master;
 use std::env;
 use task_master::tm_mod::TmStruct;
 use task_master::tm_mod::cmd::Cmd;
+use task_master::tm_mod::cmd::Instruction;
 
 #[macro_use]
 extern crate serde_derive;
@@ -33,12 +34,15 @@ pub fn receive(stream: &mut TcpStream) -> Cmd {
     return serde_json::from_str(&String::from_utf8_lossy(request)).unwrap();
 }
 
-fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) {
+fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()> {
     let cmd = receive(&mut stream);
 
     //let mut buffer = [0; 512];
     //stream.read(&mut buffer).unwrap();
 
+    if cmd.instruction == Instruction::SHUTDOWN {
+        return Err(());
+    }
     //println!("Request: {:?}", cmd);
     println!("{:?}", tm.try_receive_from_threads());
     if let Err(e) = tm.exec_cmd(cmd) {
@@ -46,21 +50,23 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) {
 
         stream.write(response.as_bytes()).unwrap();
     }
+    Ok(())
 }
 
-fn server(port: &str, tm: &mut TmStruct)
-{
+fn server(port: &str, tm: &mut TmStruct) -> Result<(), ()> {
     let listener = TcpListener::bind(port).unwrap();
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
-        handle_connection(stream, tm);
+        if handle_connection(stream, tm).is_err() {
+            return Err(());
+        }
     }
+    Ok(())
 }
 
-fn main()
-{
+fn main() {
     let args: Vec<String> = env::args().collect();
 
     // Unused variable right here
@@ -70,6 +76,4 @@ fn main()
     let map = tm.hash_config();
     tm.launch_from_hash(map);
     server("127.0.0.1:8080", &mut tm);
-    loop {
-    }
 }
