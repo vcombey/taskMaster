@@ -7,34 +7,37 @@ use task_master::cli;
 
 
 fn parse_into_cmd(line: &str) -> Option<Cmd> {
-    let split = line.split(" ");
+    let line: Vec<&str> = line.split(" ").collect();
 
-    match split.next() {
-        Some("help") => {
-            match split.next () {
-                Some(value) => match value {
-                    "start" => println!("{}", HELP_START),
-                    "restart" => println!("{}", HELP_RESTART),
-                    "stop" => println!("{}", HELP_STOP),
-                    "reload" => println!("{}", HELP_RELOAD),
-                    "status" => println!("{}", HELP_STATUS),
-                    "shutdown" => println!("{}", HELP_SHUTDOWN),
-                    "" => println!("{}", HELP_DISPLAY),
+    match line.get(0) {
+        Some(&"help") => {
+            match line.get(1) {
+                Some(value) => match *value {
+                    "start" => {println!("{}", cli::HELP_START);None},
+                    "restart" => {println!("{}", cli::HELP_RESTART);None},
+                    "stop" => {println!("{}", cli::HELP_STOP);None},
+                    "reload" => {println!("{}", cli::HELP_RELOAD);None},
+                    "status" => {println!("{}", cli::HELP_STATUS);None},
+                    "shutdown" => {println!("{}", cli::HELP_SHUTDOWN);None},
+                    "" => {println!("{}", cli::HELP_DISPLAY);None},
+                    _ => {println!("{}", cli::HELP_DISPLAY);None},
                 },
-                None => println!("{}", HELP_DISPLAY),
-            },
-            Some(_) => {
-                match Cmd::from_iterator(cmd, split) {
+                None => {println!("{}", cli::HELP_DISPLAY);None},
+            }
+        },
+        Some(_) => {
+            match Cmd::from_vec(line) {
+                Some(ret) => match ret {
                     Ok(cmd) => Some(cmd),
                     Err(e) => {
                         eprintln!("{}", e);
                         None
                     }
-                }
-            },
-            None => None
-        }
-
+                },
+                None => None,
+            }
+        },
+        None => None,
     }
 }
 

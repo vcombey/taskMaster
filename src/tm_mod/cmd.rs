@@ -1,8 +1,6 @@
 use super::super::cli;
-use std::str::Split;
-use std::str::pattern::Pattern;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, PartialEq, Deserialize, Debug)]
 pub enum Instruction {
     START,
     RESTART,
@@ -17,7 +15,7 @@ pub enum Instruction {
 /// Process(p) -> The process with name p.
 /// Service(s) -> Every single process in service named s.
 /// ServiceProcess(s, p) -> The process name p in service s.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum Target {
     ALL,
     Process(String),
@@ -27,7 +25,7 @@ pub enum Target {
 
 /// The struct that will be sent to the server, representing the
 /// operation to launch and the targets to launch it onto.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Cmd {
     instruction: Instruction,
     target_vec: Vec<Target>,
@@ -42,29 +40,39 @@ impl Cmd {
         }
     }
 
-    /// Create a command struct from the string representing the
-    /// instruction and the an iterator to retrieve the targets
-    pub fn from_iterator<'a, P>(cmd: &str, it: Split<'a, P>) -> Result<Cmd, String>
-        where P: Pattern<'a>,
-    {
-        let instruction = match cmd {
-            "start" => Instruction::START,
-            "restart" => Instruction::RESTART,
-            "stop" => Instruction::STOP,
-            "reload" => Instruction::RELOAD,
-            "status" => Instruction::STATUS,
-            "shutdown" => Instruction::SHUTDOWN,
-            value => return Err(format!("Unvalid command\n{}", cli::HELP_DISPLAY)),
+    /// Create a command from a vector of string.
+    pub fn from_vec(word_list: Vec<&str>) -> Option<Result<Cmd, String>> {
+        let instruction = match word_list.get(0) {
+            Some(value) => {
+                match *value {
+                    "start" => Instruction::START,
+                    "restart" => Instruction::RESTART,
+                    "stop" => Instruction::STOP,
+                    "reload" => Instruction::RELOAD,
+                    "status" => Instruction::STATUS,
+                    "shutdown" => Instruction::SHUTDOWN,
+                    "" => return None,
+                    value => return Some(Err(format!("Unvalid command '{}'\n{}", value, cli::HELP_DISPLAY))),
+                }
+            },
+            None => return None,
         };
-
         let mut target_vec = Vec::new();
-        for target in it {
-            target_vec.push(Target::from_str(target).unwrap());
-        }
-        Ok(Cmd {
+        if instruction != Instruction::SHUTDOWN {
+            match word_list.get(1..) {
+                Some(target_slice) => { 
+                    for target in target_slice.iter() {
+                        target_vec.push(Target::from_str(*target).unwrap());
+                    }
+                },
+                None => return Some(Err(format!("Missing target"))),
+                // Some(["", ..]) => return Err(format!("Missing target")),
+            }
+        };
+        Some(Ok(Cmd {
             instruction,
             target_vec,
-        })
+        }))
     }
 }
 
@@ -76,7 +84,7 @@ impl Target {
             // Extract the service, and then the process.
             let mini_vec: Vec<&str>= chunk.split(":").collect();
             let service = match mini_vec.get(0) { // Service
-                Some(service) =>service.to_string(),
+                Some(service) => service.to_string(),
                 None => return Err(format!("Missing service name. Type \"help\" to see different commands and syntaxs")),
             };
             let process = match mini_vec.get(1) { // Process
@@ -88,7 +96,7 @@ impl Target {
                     return Err(format!("Process is the bottom level of the hierarchy: Do not add ':' after a process"));
                 }
             }
-            // INFECTE
+            // THIS NEEDS TO CHANGE ASAP
             let str1 = String::from("");
             let str2 = String::from("*");
 
@@ -103,5 +111,36 @@ impl Target {
                 process_name => Ok(Target::Process(process_name.to_string())),
             }
         }
+    }
+}
+#[cfg(test)]
+pub mod test_cmd {
+    use super::*;
+
+    #[test]
+    fn test_eq_instruction_r() {
+        let cmd_1 = Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::ALL],
+        };
+        let cmd_2 = Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::ALL],
+        };
+        assert_eq!(cmd_1, cmd_2);
+    }
+
+    #[test]
+    /// Verying different instructions result in the Cmd not being evaluated as equals
+    fn test_ne_instruction_w() { 
+        let cmd_1 = Cmd {
+            instruction: Instruction::SHUTDOWN,
+            target_vec: vec![Target::ALL],
+        };
+        let cmd_2 = Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::ALL],
+        };
+        assert_ne!(cmd_1, cmd_2);
     }
 }
