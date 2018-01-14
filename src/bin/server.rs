@@ -29,17 +29,18 @@ pub fn receive(stream: &mut TcpStream) -> Cmd {
 
     let nb_bytes = stream.read(&mut buffer).unwrap();
     let request = &buffer[..nb_bytes];
-    println!("Request: {:?} {:?}", nb_bytes, String::from_utf8_lossy(request));
+ //   println!("Request: {:?} {:?}", nb_bytes, String::from_utf8_lossy(request));
     return serde_json::from_str(&String::from_utf8_lossy(request)).unwrap();
 }
 
 fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) {
     let cmd = receive(&mut stream);
+
     //let mut buffer = [0; 512];
     //stream.read(&mut buffer).unwrap();
 
-    println!("Request: {:?}", cmd);
-    println!("Request: {:#?}", tm);
+    //println!("Request: {:?}", cmd);
+
     tm.exec_cmd(cmd);
 
     let response = "HTTP/1.1 200 OK\r\n\r\n";
