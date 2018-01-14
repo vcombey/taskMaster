@@ -49,7 +49,7 @@ impl error::Error for ExecErrors {
 impl fmt::Display for ExecErrors {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         //&self.e_vect.iter().map(|x| x.__description()).collect().join("")
-        let message = self.e_vect.iter().fold(String::new(), |acc, x| format!("{}{}", acc, x));
+        let message = self.e_vect.iter().fold(String::new(), |acc, x| format!("{}\n{}", acc, x));
         write!(f, "{}", message)
     }
 }

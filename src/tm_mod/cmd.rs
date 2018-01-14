@@ -42,7 +42,7 @@ impl Cmd {
     /// instruction and the an iterator to retrieve the targets
     pub fn from_line(line: &str) -> Result<Cmd, String>
     {
-        let mut split = line.split(" ");
+        let mut split = line.split_whitespace();
         let instruction = match split.next() {
             Some("start") => Instruction::START,
             Some("restart") => Instruction::RESTART,

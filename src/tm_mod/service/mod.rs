@@ -35,7 +35,7 @@ impl Service {
 
     pub fn send_to_process(&self, p_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
         let thread = self.thread_hash.get(p_name)
-            .ok_or(ExecError::ServiceName(String::from(p_name)));
+            .ok_or(ExecError::ProcessName(String::from(p_name)));
 
         thread.map_err(|e| ExecErrors{e_vect: vec![e]})
             .and_then(|t| t.send(ins))

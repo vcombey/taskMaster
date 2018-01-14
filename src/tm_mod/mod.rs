@@ -44,7 +44,6 @@ impl<'tm> TmStruct<'tm> {
         }
     }
 
-    
     fn send_to_process(&self, p_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
         for (_, service) in self.service_hash.iter() {
             if service.contains_process(p_name) {
@@ -79,25 +78,19 @@ impl<'tm> TmStruct<'tm> {
             .and_then(|s| s.send_to_process(p_name, ins))
     }
 
-    pub fn exec_cmd(&mut self, cmd: Cmd) {
+    pub fn exec_cmd(&mut self, cmd: Cmd) -> Result<(), ExecErrors> {
         let ins = cmd.instruction;
-        for target in cmd.target_vec.into_iter() {
-            //    println!("target {:?}", target);
+        let e: Vec<ExecError>  = cmd.target_vec.into_iter().filter_map(|target| {
             match target {
-                Target::ALL => { 
-                    self.send_to_all_service(ins).map_err(|e| println!("error is: {}",e));
-                    },
-                Target::Process(p_name) => {
-                    self.send_to_process(&p_name, ins).map_err(|e| println!("{}",e));
-                },
-                Target::Service(s_name) => {
-                    self.send_to_service(&s_name, ins).map_err(|e| println!("error is: {}",e));
-                    ;},
-                Target::ServiceProcess((s_name, p_name)) => {
-                    self.send_to_service_process(&s_name, &p_name, ins).map_err(|e| println!("error is: {}",e));
-                },
-            }
-        }
+                Target::ALL => self.send_to_all_service(ins),
+                Target::Process(p_name) => self.send_to_process(&p_name, ins),
+                Target::Service(s_name) => self.send_to_service(&s_name, ins),
+                Target::ServiceProcess((s_name, p_name)) => self.send_to_service_process(&s_name, &p_name, ins),
+            }.err()
+        }).flat_map(|e| e.e_vect.into_iter())
+        .collect();
+
+        ExecErrors::result_from_e_vec(e)//.map_err(|e| println!("error is: {}",e));
     }
 
     /// Reads the content of the config file, and transforms it into a vector of Yaml struct.

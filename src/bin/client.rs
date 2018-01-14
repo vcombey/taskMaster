@@ -8,7 +8,7 @@ use task_master::cli::*;
 
 
 fn parse_into_cmd(line: &str) -> Option<Cmd> {
-    let mut split = line.split(" ");
+    let mut split = line.split_whitespace();
 
     let first = split.next()?;
     match first
@@ -106,7 +106,7 @@ mod test {
                           vec![Target::ServiceProcess(
                               (String::from("serv1"), String::from("cmd1")))])));
 
-            assert_eq!(parse_into_cmd(&format!("{} {}:*", ins_str, "serv1")),
+            assert_eq!(parse_into_cmd(&format!("{} {}:*   ", ins_str, "serv1")),
             Some(Cmd::new(ins,
                           vec![Target::Service(
                               String::from("serv1"))])));
@@ -124,4 +124,3 @@ mod test {
         assert_eq!(parse_into_cmd(":lala"), None);
     }
 }
-

@@ -41,11 +41,11 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) {
 
     //println!("Request: {:?}", cmd);
 
-    tm.exec_cmd(cmd);
+    if let Err(e) = tm.exec_cmd(cmd) {
+        let response = format!("{}", e);
 
-    let response = "HTTP/1.1 200 OK\r\n\r\n";
-
-    stream.write(response.as_bytes()).unwrap();
+        stream.write(response.as_bytes()).unwrap();
+    }
 }
 
 fn server(port: &str, tm: &mut TmStruct)
