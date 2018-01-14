@@ -13,6 +13,7 @@ use std::io::Read;
 pub mod service;
 pub mod config;
 pub mod cmd;
+pub mod exec_error;
 
 // Loading submodules's struct
 use self::service::Service;
@@ -21,7 +22,9 @@ use self::config::Config;
 use tm_mod::cmd::Target;
 use tm_mod::cmd::Cmd;
 use tm_mod::cmd::Instruction;
+use tm_mod::exec_error::ExecErrors;
 
+#[derive(Debug)]
 pub struct TmStruct<'tm> {
     config_file: &'tm str,
     service_hash: HashMap<String, service::Service>,
@@ -39,28 +42,49 @@ impl<'tm> TmStruct<'tm> {
             sender_to_main,
         }
     }
-    /*
-    pub fn send_thread(&mut self, p_name: String, ins: Instruction) {
+
+    fn send_to_process(&self, p_name: &str, ins: Instruction) {
         for (_, service) in self.service_hash.iter() {
-            service.send_thread(p_name, ins);
+            service.send_to_process(p_name, ins);
         }
     }
+    
+    fn send_to_all_service(&self, p_name: &str, ins: Instruction) {
+        for (_, service) in self.service_hash.iter() {
+            service.send_to_all_process(ins);
+        }
+    }
+
+    fn send_to_service(&self, s_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
+        let service = self.service_hash.get(s_name)
+            .ok_or(String::from("no service with that name"));
+        service.and_then(|s| s.send_to_all_process(ins))
+    }
+
+    fn send_to_service_process(&self, s_name: &str, p_name: &str, ins: Instruction) -> Result<(), String> {
+        let service = self.service_hash.get(s_name)
+            .ok_or(String::from("no service with that name"));
+        service.and_then(|s| s.send_to_process(p_name, ins))
+    }
+
     pub fn exec_cmd(&mut self, cmd: Cmd) {
         let ins = cmd.instruction;
         for target in cmd.target_vec.into_iter() {
+            //    println!("target {:?}", target);
             match target {
-                ALL => { ;},
+                Target::ALL => { ;},
                 Target::Process(p_name) => {
-                    self.send_thread(p_name, ins);
+                    //self.send_to_process(&p_name, ins)/*.map_err(|e| println!("{}",e))*/;
                 },
-                Target::Service(s_name) => { ;},
-                Target::ServiceProcess((p_name, s_name)) => { ;},
-            }
-            for (service, map) in self.service_hash.iter() {
+                Target::Service(s_name) => {
+                    self.send_to_service(&s_name, ins).map_err(|e| println!("{}",e));
+                    ;},
+                Target::ServiceProcess((s_name, p_name)) => {
+                    self.send_to_service_process(&s_name, &p_name, ins).map_err(|e| println!("{}",e));
+                },
             }
         }
     }
-    */
 
     /// Reads the content of the config file, and transforms it into a vector of Yaml struct.
     pub fn parse_config_file(&'tm self) -> Vec<Yaml>{

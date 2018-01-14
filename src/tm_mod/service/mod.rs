@@ -12,6 +12,7 @@ use self::thread::Thread;
 use tm_mod::cmd::Instruction;
 //use tm_mod::cmd::Cmd;
 
+#[derive(Debug)]
 pub struct Service {
     pub name: String,
     thread_hash: HashMap<String, Thread>,
@@ -24,15 +25,27 @@ impl Service {
             thread_hash: HashMap::new(),
         }
     }
-    /*
-    pub fn send_thread(&mut self, p_name: String, ins: Instruction) {
-        for (thread_name, thread) in self.thread_hash.iter() {
-            if &p_name == thread_name {
-                //thread.send(ins);
+
+    pub fn send_to_process(&self, p_name: &str, ins: Instruction) -> Result<(), String> {
+        let thread = self.thread_hash.get(p_name)
+            .ok_or(String::from("no process with that name"));
+
+        thread.and_then(|t| t.send(ins))
+    }
+
+    pub fn send_to_all_process(&self, ins: Instruction) -> Result<(), String> {
+        let mut res: Result<(), String> = Ok(());
+        for (_, thread) in self.thread_hash.iter() {
+            if let Some(e) = thread.send(ins).err() {
+                res = match res {
+                    Ok(_) => Err(e),
+                    Err(o) => Err(format!("{}{}", o, e)),
+                }
             }
         }
+        res
     }
-    */
+
     pub fn launch_from_hash(&mut self, map: HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
         for (name, config) in map.into_iter() {
             println!("name: {}", name);

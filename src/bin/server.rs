@@ -39,7 +39,8 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) {
     //stream.read(&mut buffer).unwrap();
 
     println!("Request: {:?}", cmd);
-//    tm.exec_cmd(cmd);
+    println!("Request: {:#?}", tm);
+    tm.exec_cmd(cmd);
 
     let response = "HTTP/1.1 200 OK\r\n\r\n";
 

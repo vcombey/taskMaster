@@ -4,6 +4,7 @@ use std::sync::mpsc::Sender;
 use std::thread::JoinHandle;
 use super::super::cmd::Instruction;
 
+#[derive(Debug)]
 pub struct Thread {
     config: Config,
     sender: Vec<Sender<Instruction>>,
@@ -17,5 +18,18 @@ impl Thread {
             join_handle,
             sender,
         }
+    }
+    pub fn send(&self, ins: Instruction) -> Result<(), String> {
+        let mut res: Result<(), String> = Ok(());
+        for (i, sender) in self.sender.iter().enumerate() {
+            let e = sender.send(ins).map_err(|_| format!("pb in sending to the thread no {}\n", i)).err();
+            if let Some(e) = e {
+                res = match res {
+                    Ok(_) => Err(e),
+                    Err(o) => Err(format!("{}{}", o, e)),
+                }
+            }
+        }
+        res
     }
 }
