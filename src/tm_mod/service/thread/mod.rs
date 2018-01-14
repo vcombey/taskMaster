@@ -23,7 +23,7 @@ impl Thread {
     }
     pub fn send(&self, ins: Instruction) -> Result<(), ExecErrors> {
         let e: Vec<ExecError> = self.sender.iter().enumerate().filter_map(|(i, s)| {
-            s.send(ins).map_err(|_| ExecError::Sending((self.config.name, i))).err()
+            s.send(ins).map_err(|_| ExecError::Sending((self.config.name.clone(), i))).err()
         })
         .collect();
         Err(ExecErrors{ e_vect: e})

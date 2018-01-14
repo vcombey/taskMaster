@@ -1,5 +1,6 @@
 use std::fmt::*;
 use std::error;
+use std::error::Error;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum ExecError {
@@ -11,39 +12,26 @@ pub enum ExecError {
     Sending((String, usize)),
 }
 
-
-impl ExecError {
-    fn __description(&self) -> &str {
+impl error::Error for ExecError {
+    fn description(&self) -> &str {
         match *self {
-            ExecError::ProcessName(name) => &format!("no process with name {}", name),
-            ExecError::ServiceName(name) => &format!("no service with name {}", name),
-            ExecError::Sending((p_name, thread_id)) => 
-                &format!("problem while sending to {} to thread id {}", p_name, thread_id),
+            ExecError::ProcessName(_) => "no process with name",
+            ExecError::ServiceName(_) => "no service with name",
+            ExecError::Sending(_) => 
+                "problem while sending to to thread",
         }
     }
 }
 
 impl Display for ExecError {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "{}", self.__description())
-    }
-}
-
-impl error::Error for ExecError {
-    fn description(&self) -> &str {
-        self.__description()
-    }
-}
-
-impl Display for ExecErrors {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "{}", self.__description())
-    }
-}
-
-impl error::Error for ExecErrors {
-    fn description(&self) -> &str {
-        &self.__description()
+        match *self {
+            ExecError::ProcessName(ref name) => write!(f, "{} {}", self.description(), name),
+            ExecError::ServiceName(ref name) => write!(f, "{} {}", self.description(), name),
+            ExecError::Sending((ref p_name, thread_id)) =>
+                write!(f, "{} {} {}", self.description(), p_name, thread_id),
+        }
+        
     }
 }
 
@@ -52,9 +40,16 @@ pub struct ExecErrors {
     pub e_vect: Vec<ExecError>,
 }
 
-impl ExecErrors {
-    fn __description(&self) -> &str {
-        &self.e_vect.into_iter().fold(String::new(), |acc, x| format!("{}{}", acc, x.__description()))
+impl error::Error for ExecErrors {
+    fn description(&self) -> &str {
+        "exec errors"
+    }
+}
+
+impl Display for ExecErrors {
+    fn fmt(&self, f: &mut Formatter) -> Result {
         //&self.e_vect.iter().map(|x| x.__description()).collect().join("")
+        let message = self.e_vect.iter().fold(String::new(), |acc, x| format!("{}{}", acc, x));
+        write!(f, "{}", message)
     }
 }
