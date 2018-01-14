@@ -19,7 +19,7 @@ impl Thread {
             sender,
         }
     }
-    pub fn send(&self, ins: Instruction) -> Result<(), String> {
+    pub fn send(&self, ins: Instruction) -> Result<(), ExecErrors> {
         let mut res: Result<(), String> = Ok(());
         for (i, sender) in self.sender.iter().enumerate() {
             let e = sender.send(ins).map_err(|_| format!("pb in sending to the thread no {}\n", i)).err();

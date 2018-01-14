@@ -10,6 +10,9 @@ use super::config::Config;
 use self::thread::process::Process;
 use self::thread::Thread;
 use tm_mod::cmd::Instruction;
+use tm_mod::exec_error::ExecErrors;
+use tm_mod::exec_error::ExecError;
+
 //use tm_mod::cmd::Cmd;
 
 #[derive(Debug)]
@@ -33,16 +36,19 @@ impl Service {
         thread.and_then(|t| t.send(ins))
     }
 
-    pub fn send_to_all_process(&self, ins: Instruction) -> Result<(), String> {
-        let mut res: Result<(), String> = Ok(());
-        for (_, thread) in self.thread_hash.iter() {
+    pub fn send_to_all_process(&self, ins: Instruction) -> Result<(), ExecErrors>  {
+        //let mut res: Result<(), ExecError> = Ok(());
+        let res = self.thread_hash.values()
+            .filter_map(|t| t.send(ins).err()).collect();
+        
+        /*for (_, thread) in self.thread_hash.iter() {
             if let Some(e) = thread.send(ins).err() {
                 res = match res {
                     Ok(_) => Err(e),
                     Err(o) => Err(format!("{}{}", o, e)),
                 }
             }
-        }
+        }*/
         res
     }
 

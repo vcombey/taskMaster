@@ -23,6 +23,7 @@ use tm_mod::cmd::Target;
 use tm_mod::cmd::Cmd;
 use tm_mod::cmd::Instruction;
 use tm_mod::exec_error::ExecErrors;
+use tm_mod::exec_error::ExecError;
 
 #[derive(Debug)]
 pub struct TmStruct<'tm> {
@@ -57,8 +58,10 @@ impl<'tm> TmStruct<'tm> {
 
     fn send_to_service(&self, s_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
         let service = self.service_hash.get(s_name)
-            .ok_or(String::from("no service with that name"));
-        service.and_then(|s| s.send_to_all_process(ins))
+            .ok_or(ExecError::ServiceName(String::from(s_name)));
+
+        service.map_err(|e| ExecErrors{e_vect: vec![e]})
+            .and_then(|s| s.send_to_all_process(ins))
     }
 
     fn send_to_service_process(&self, s_name: &str, p_name: &str, ins: Instruction) -> Result<(), String> {

@@ -25,7 +25,7 @@ impl ExecError {
 
 impl Display for ExecError {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        self.__description().fmt(f)
+        write!(f, "{}", self.__description())
     }
 }
 
@@ -37,7 +37,7 @@ impl error::Error for ExecError {
 
 impl Display for ExecErrors {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        self.__description().fmt(f)
+        write!(f, "{}", self.__description())
     }
 }
 
@@ -54,6 +54,7 @@ pub struct ExecErrors {
 
 impl ExecErrors {
     fn __description(&self) -> &str {
-        &self.e_vect.into_iter().fold(String::new(), |acc, x| acc.push_str(x.__description()))
+        &self.e_vect.into_iter().fold(String::new(), |acc, x| format!("{}{}", acc, x.__description()))
+        //&self.e_vect.iter().map(|x| x.__description()).collect().join("")
     }
 }

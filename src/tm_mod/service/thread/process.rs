@@ -54,7 +54,7 @@ impl Process {
         if let Some(ref string) = self.config.stdout {
             match File::open(string) {
                 Ok(file) => {self.command.stdout(file);},
-                Err(e) => eprintln!("error{:?}", e),
+                Err(e) => eprintln!("{}", e),
             }
         }
         self
@@ -64,7 +64,7 @@ impl Process {
         if let Some(ref string) = self.config.stderr {
             match File::open(string) {
                 Ok(file) => {self.command.stderr(file);},
-                Err(e) => eprintln!("error{:?}", e),
+                Err(e) => eprintln!("{}", e),
             }
         }
         self
