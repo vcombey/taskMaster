@@ -65,7 +65,7 @@ fn main() {
         let mut stream = TcpStream::connect("127.0.0.1:8080").unwrap();
         emit(&mut stream, cmd);
         let _ = stream.read_to_string(&mut buffer);
-        println!("message get{}", buffer);
+        println!("{}", buffer);
     }
 }
 

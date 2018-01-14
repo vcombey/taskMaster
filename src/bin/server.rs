@@ -44,12 +44,15 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()>
         return Err(());
     }
     //println!("Request: {:?}", cmd);
-    println!("{:?}", tm.try_receive_from_threads());
-    if let Err(e) = tm.exec_cmd(cmd) {
-        let response = format!("{}", e);
-
-        stream.write(response.as_bytes()).unwrap();
-    }
+    
+    let response = tm.try_receive_from_threads()
+        .unwrap_or(String::from("pb receiving from threads"));
+    let response_err = match tm.exec_cmd(cmd) {
+        Err(e) => format!("{}", e),
+        Ok(_) => format!(""),
+    };
+    let response = format!("{}{}", response, response_err);
+    stream.write(response.as_bytes()).unwrap();
     Ok(())
 }
 
