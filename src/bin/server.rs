@@ -40,7 +40,7 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) {
     //stream.read(&mut buffer).unwrap();
 
     //println!("Request: {:?}", cmd);
-
+    println!("{:?}", tm.try_receive_from_threads());
     if let Err(e) = tm.exec_cmd(cmd) {
         let response = format!("{}", e);
 

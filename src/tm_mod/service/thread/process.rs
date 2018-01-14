@@ -189,7 +189,7 @@ impl Process {
         }
     }
     fn status(&mut self) {
-        self.sender.send((format!("{}: {:?}", self.config.name, self.state)));
+        self.sender.send(format!("{}: {:?}", self.config.name, self.state));
     }
     fn handle_cmd(&mut self, cmd: Instruction) {
         match cmd {

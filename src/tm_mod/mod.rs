@@ -159,15 +159,8 @@ impl<'tm> TmStruct<'tm> {
         }
         return service_hash;
     }
-    pub fn receive_from_threads(&self) {
-        loop {
-            match self.receiver_from_threads.try_recv() {
-                Ok(mess) => {
-                    eprintln!("message receive {}", mess);
-                },
-                Err(e) => { eprintln!("{:?}", e); },
-            }
-        }
+    pub fn try_receive_from_threads(&self) -> Result<String, mpsc::TryRecvError>{
+        self.receiver_from_threads.try_recv()
     }
 }
 
