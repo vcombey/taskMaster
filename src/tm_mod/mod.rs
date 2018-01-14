@@ -44,6 +44,7 @@ impl<'tm> TmStruct<'tm> {
         }
     }
 
+    /*
     fn send_to_process(&self, p_name: &str, ins: Instruction) {
         for (_, service) in self.service_hash.iter() {
             service.send_to_process(p_name, ins);
@@ -55,7 +56,7 @@ impl<'tm> TmStruct<'tm> {
             service.send_to_all_process(ins);
         }
     }
-
+*/
     fn send_to_service(&self, s_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
         let service = self.service_hash.get(s_name)
             .ok_or(ExecError::ServiceName(String::from(s_name)));
@@ -63,13 +64,13 @@ impl<'tm> TmStruct<'tm> {
         service.map_err(|e| ExecErrors{e_vect: vec![e]})
             .and_then(|s| s.send_to_all_process(ins))
     }
-
+/*
     fn send_to_service_process(&self, s_name: &str, p_name: &str, ins: Instruction) -> Result<(), String> {
         let service = self.service_hash.get(s_name)
             .ok_or(String::from("no service with that name"));
         service.and_then(|s| s.send_to_process(p_name, ins))
     }
-
+*/
     pub fn exec_cmd(&mut self, cmd: Cmd) {
         let ins = cmd.instruction;
         for target in cmd.target_vec.into_iter() {
@@ -83,7 +84,7 @@ impl<'tm> TmStruct<'tm> {
                     self.send_to_service(&s_name, ins).map_err(|e| println!("{}",e));
                     ;},
                 Target::ServiceProcess((s_name, p_name)) => {
-                    self.send_to_service_process(&s_name, &p_name, ins).map_err(|e| println!("{}",e));
+                    //self.send_to_service_process(&s_name, &p_name, ins).map_err(|e| println!("{}",e));
                 },
             }
         }

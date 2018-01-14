@@ -28,20 +28,11 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
             };
             None
         },
-        _ => {
-            match Cmd::from_line(line) {
-                Ok(cmd) => Some(cmd),
-                Err(e) => {
-                    eprintln!("{}", e);
-                    None
-                }
-            }
-        },
+        _ => Cmd::from_line(line).map_err(|e| eprintln!("{}", e))
+                .ok(),
     }
-
-    /*
-    */
 }
+
 use std::net::{TcpStream,TcpListener};
 use std::io::{Write, Read};
 

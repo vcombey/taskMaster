@@ -49,7 +49,7 @@ impl error::Error for ExecErrors {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct ExecErrors {
-    e_vect: Vec<ExecError>,
+    pub e_vect: Vec<ExecError>,
 }
 
 impl ExecErrors {

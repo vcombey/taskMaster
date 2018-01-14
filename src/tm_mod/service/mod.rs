@@ -29,17 +29,19 @@ impl Service {
         }
     }
 
-    pub fn send_to_process(&self, p_name: &str, ins: Instruction) -> Result<(), String> {
+    /*pub fn send_to_process(&self, p_name: &str, ins: Instruction) -> Result<(), String> {
         let thread = self.thread_hash.get(p_name)
             .ok_or(String::from("no process with that name"));
 
         thread.and_then(|t| t.send(ins))
-    }
+    }*/
 
     pub fn send_to_all_process(&self, ins: Instruction) -> Result<(), ExecErrors>  {
         //let mut res: Result<(), ExecError> = Ok(());
-        let res = self.thread_hash.values()
-            .filter_map(|t| t.send(ins).err()).collect();
+        let e: Vec<ExecError> = self.thread_hash.values()
+            .filter_map(|t| t.send(ins).err())
+            .flat_map(|e| e.e_vect.into_iter())
+            .collect();
         
         /*for (_, thread) in self.thread_hash.iter() {
             if let Some(e) = thread.send(ins).err() {
@@ -49,7 +51,7 @@ impl Service {
                 }
             }
         }*/
-        res
+        Err(ExecErrors{e_vect: e})
     }
 
     pub fn launch_from_hash(&mut self, map: HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
