@@ -1,13 +1,21 @@
 extern crate task_master;
 extern crate liner;
 
+extern crate serde;
+extern crate serde_json;
+
+
 use liner::Context;
+
+use std::net::TcpStream;
+use std::io::{Write, Read};
+
 use task_master::tm_mod::cmd::Cmd;
 use task_master::cli;
 
 
 fn parse_into_cmd(line: &str) -> Option<Cmd> {
-    let mut split: Vec<&str> = line.split_whitespace().collect();
+    let split: Vec<&str> = line.split_whitespace().collect();
 
     match split.get(0) {
         Some(&"help") => {
@@ -33,23 +41,13 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
     }
 }
 
-use std::net::{TcpStream,TcpListener};
-use std::io::{Write, Read};
-
-#[macro_use]
-extern crate serde_derive;
-
-extern crate serde;
-extern crate serde_json;
-
-use serde::{Serialize, Serializer};
 
 fn emit<T>(stream: &mut TcpStream, t: T)
     where T: serde::Serialize + serde::export::fmt::Debug
 {
     println!("Before serialize, on the emit side : {:?}", t);
     let serialized : String = serde_json::to_string(&t).unwrap();
-    stream.write(&serialized.as_bytes());
+    stream.write(&serialized.as_bytes()).unwrap();
     //stream.flush().unwrap();
 }
 
@@ -66,7 +64,7 @@ fn main() {
             let _ = stream.read_to_string(&mut buffer);
             println!("{}", buffer);
         }
-        con.history.push(res.into());
+        con.history.push(res.into()).unwrap();
     }
 }
 
