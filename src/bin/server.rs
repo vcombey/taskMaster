@@ -1,14 +1,16 @@
 extern crate task_master;
+
+extern crate serde;
+extern crate serde_json;
+
 use std::env;
+use std::net::{TcpStream,TcpListener};
+use std::io::{Read, Write};
+
 use task_master::tm_mod::TmStruct;
 use task_master::tm_mod::cmd::Cmd;
 use task_master::tm_mod::cmd::Instruction;
 
-#[macro_use]
-extern crate serde_derive;
-
-extern crate serde;
-extern crate serde_json;
 
 fn parse_argv (args: &[String]) -> (&str, &str) {
     if args.len() < 3 {
@@ -22,8 +24,6 @@ fn parse_argv (args: &[String]) -> (&str, &str) {
 
     (option, filename)
 }
-use std::net::{TcpStream,TcpListener};
-use std::io::{Read, Write};
 
 pub fn receive(stream: &mut TcpStream) -> Cmd {
     let mut buffer = [0; 512];
@@ -56,7 +56,7 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()>
     Ok(())
 }
 
-fn server(port: &str, tm: &mut TmStruct) -> Result<(), ()> {
+fn launch_server(port: &str, tm: &mut TmStruct) -> Result<(), ()> {
     let listener = TcpListener::bind(port).unwrap();
 
     for stream in listener.incoming() {
@@ -78,5 +78,5 @@ fn main() {
 
     let map = tm.hash_config();
     tm.launch_from_hash(map);
-    server("127.0.0.1:8080", &mut tm);
+    let _ = launch_server("127.0.0.1:8080", &mut tm);
 }
