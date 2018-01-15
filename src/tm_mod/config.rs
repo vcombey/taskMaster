@@ -5,6 +5,8 @@ use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
 // Imorting std
 #[allow(unused_imports)]
 use std::time::{Duration, Instant};
+use nix::sys::signal::Signal::*;
+use nix::sys::signal::Signal;
 
 #[derive(Debug,Clone)]
 pub enum Autorestart {
@@ -30,16 +32,16 @@ pub struct Config {
     pub umask: u16,
     pub autorestart: Autorestart,
     pub starttime: Duration,
-    pub stopsignal: i64,
+    pub stopsignal: Signal,
     pub stoptime: Duration,
     pub numprocs: usize,
 }
 
 
 impl Config {
-/// Function to generate a new instance of a Config strct.
-/// Only mandatory arguments are name and command.
-/// Other arguments can be skipped by giving `None' 
+    /// Function to generate a new instance of a Config strct.
+    /// Only mandatory arguments are name and command.
+    /// Other arguments can be skipped by giving `None' 
     pub fn new(name: &str,
                argv: &str, 
                workingdir: Option<&str>,
@@ -52,7 +54,7 @@ impl Config {
                umask: Option<i64>,
                autorestart: Option<&str>,
                starttime: Option<i64>,
-               stopsignal: Option<i64>,
+               stopsignal: Signal,
                stoptime: Option<i64>,
                numprocs: Option<i64>
               ) -> Config {
@@ -99,10 +101,7 @@ impl Config {
                 Some(i) => Duration::from_secs(i as u64),
                 None => Duration::from_secs(1),
             },
-            stopsignal: match stopsignal {
-                Some(i) => i,
-                None => 0, //TODO: mettre TERM,
-            },
+            stopsignal,
             stoptime:  match stoptime {
                 Some(i) => Duration::from_secs(i as u64),
                 None => Duration::from_secs(10),
@@ -113,9 +112,47 @@ impl Config {
             },
         }
     }
-        /// Creates a Config instance from the process name and a
-        /// Yaml struct representing the config options. Parses
-        /// YAML into variables and calls new.
+
+    fn parse_signal(sig_name: &str) -> Option<Signal> {
+        match sig_name {
+            "HUP"=>   Some(SIGHUP),
+            "INT"=>   Some(SIGINT),
+            "QUIT"=>  Some(SIGQUIT),
+            "ILL"=>   Some(SIGILL),
+            "TRAP"=>  Some(SIGTRAP),
+            "ABRT"=>  Some(SIGABRT),
+            "BUS"=>   Some(SIGBUS),
+            "FPE"=>   Some(SIGFPE),
+            "KILL"=>  Some(SIGKILL),
+            "USR1"=>  Some(SIGUSR1),
+            "SEGV"=>  Some(SIGSEGV),
+            "USR2"=>  Some(SIGUSR2),
+            "PIPE"=>  Some(SIGPIPE),
+            "ALRM"=>  Some(SIGALRM),
+            "TERM"=>  Some(SIGTERM),
+            "CHLD"=>  Some(SIGCHLD),
+            "CONT"=>  Some(SIGCONT),
+            "STOP"=>  Some(SIGSTOP),
+            "TSTP"=>  Some(SIGTSTP),
+            "TTIN"=>  Some(SIGTTIN),
+            "TTOU"=>  Some(SIGTTOU),
+            "URG"=>   Some(SIGURG),
+            "XCPU"=>  Some(SIGXCPU),
+            "XFSZ"=>  Some(SIGXFSZ),
+            "VTALRM"=>Some(SIGVTALRM),
+            "PROF"=>  Some(SIGPROF),
+            "WINCH"=> Some(SIGWINCH),
+            "IO"=>    Some(SIGIO),
+            "SYS"=>   Some(SIGSYS),
+            "EMT"=>   Some(SIGEMT),
+            "INFO"=>  Some(SIGINFO),
+            _ =>      None,
+        }
+    }
+
+    /// Creates a Config instance from the process name and a
+    /// Yaml struct representing the config options. Parses
+    /// YAML into variables and calls new.
     pub fn from_yaml(name: &str, argv: &str, config: &Yaml) -> Config {
 
         // env is represented by a nested YAML into the current
@@ -141,21 +178,27 @@ impl Config {
                 None => None,
             },
         };
+
+        let stop_signal = match (&config["stopsignal"]).as_str() {
+            Some(slice) => self::Config::parse_signal(slice).unwrap(),
+            None => SIGTERM,
+        };
         Config::new(name,
-        argv,
-        (&config["workingdir"]).as_str(),
-        (&config["autostart"]).as_bool(),
-        env,
-        (&config["stdout"]).as_str(),
-        (&config["stderr"]).as_str(),
-        exitcodes,
-        (&config["startretries"]).as_i64(),
-        (&config["umask"]).as_i64(),
-        (&config["autorestart"]).as_str(),
-        (&config["starttime"]).as_i64(),
-        (&config["stopsignal"]).as_i64(),
-        (&config["stoptime"]).as_i64(),
-        (&config["numprocs"]).as_i64(),
-        )
+                    argv,
+                    (&config["workingdir"]).as_str(),
+                    (&config["autostart"]).as_bool(),
+                    env,
+                    (&config["stdout"]).as_str(),
+                    (&config["stderr"]).as_str(),
+                    exitcodes,
+                    (&config["startretries"]).as_i64(),
+                    (&config["umask"]).as_i64(),
+                    (&config["autorestart"]).as_str(),
+                    (&config["starttime"]).as_i64(),
+                    stop_signal,
+                    (&config["stoptime"]).as_i64(),
+                    (&config["numprocs"]).as_i64(),
+                    )
     }
 }
+

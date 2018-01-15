@@ -4,11 +4,14 @@ use std::process::Child;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 use std::os::unix::process::CommandExt;
-extern crate nix;
-use self::nix::sys::stat::umask;
-use self::nix::sys::stat::Mode;
-
+use std::os::unix::process::ExitStatusExt;
 use std::io::Error;
+
+use nix::sys::stat::umask;
+use nix::sys::stat::Mode;
+use nix::sys::signal::kill;
+use nix::sys::signal::Signal;
+use nix::unistd::Pid;
 
 #[derive(Debug,PartialEq)]
 enum State {
@@ -127,7 +130,11 @@ impl Process {
                                       exit_status_code);
                         }
                         None => {
-                            eprintln!("INFO stopped: '{}' (terminated by SIGKILL) ", self.config.name);
+                            if let Some(exit_signal) = exit_status.signal() {
+                                eprintln!("INFO stopped: '{}' (terminated by {:?}) ",
+                                    self.config.name,
+                                    Signal::from_c_int(exit_signal).unwrap());
+                            }
                         }
                     }
                     return State::BACKOFF;
@@ -200,17 +207,20 @@ impl Process {
         }
         State::BACKOFF
     }
+
     fn stop(&mut self) {
         if let Some(ref mut child) = self.child {
-            match child.kill() {
+            match kill(Pid::from_raw(child.id() as i32), self.config.stopsignal) {
                 Ok(_) => {;}, 
                 Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
             }
         }
     }
+
     fn status(&mut self) {
         self.sender.send(format!("{}: {:?}", self.config.name, self.state));
     }
+
     fn handle_cmd(&mut self, cmd: Instruction) {
         match cmd {
             Instruction::STOP => {
@@ -231,6 +241,8 @@ impl Process {
     }
     pub fn manage_program(&mut self) {
         self.state = self.try_execute();
+
+        eprintln!("config: {:#?}", self.config);
         loop {
             match self.receiver.try_recv() {
                 Ok(ins) => {
