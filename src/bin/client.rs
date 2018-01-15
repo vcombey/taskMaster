@@ -58,13 +58,11 @@ fn main() {
     let mut con = Context::new();
     loop {
         let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
-        let cmd = parse_into_cmd(&res);
-        if cmd.is_some() {
+        if let Some(cmd) = parse_into_cmd(&res) {
             let mut buffer = String::new();
             let mut stream = TcpStream::connect("127.0.0.1:8080").unwrap();
             emit(&mut stream, cmd);
             let _ = stream.read_to_string(&mut buffer);
-            println!("{}", buffer);
         }
         con.history.push(res.into());
     }
@@ -111,6 +109,11 @@ pub mod test_parse_into_cmd{
         Cmd::new(Instruction::START,
                  vec![Target::Process("process_one".to_string()), Target::ServiceProcess(("service_one".to_string(), "process_two".to_string()))],
                  ));
+    }
+
+    #[test]
+    fn test_cmd_no_target() {
+        assert_eq!(parse_into_cmd("start"), None);
     }
 }
 

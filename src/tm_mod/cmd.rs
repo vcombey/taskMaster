@@ -61,7 +61,9 @@ impl Cmd {
             } else {
                 return Err("Missing target".to_string());
             }
-            // Some(["", ..]) => return Err(format!("Missing target")),
+        }
+        if target_vec.is_empty() {
+            return Err("Missing target".to_string());
         }
         Ok(Cmd {instruction, target_vec,})
     }
@@ -103,6 +105,7 @@ impl Target {
             // End of service:process
         } else { 	// Single word pattern, either all or process_name
             match chunk {
+                "" => Err("Missing target".to_string()),
                 "all" | "ALL" | "All" => Ok(Target::ALL),
                 process_name => Ok(Target::Process(process_name.to_string())),
             }
