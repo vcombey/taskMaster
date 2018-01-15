@@ -1,0 +1,23 @@
+* REREAD
+** Gen YAML
+** Gen HashMap<String, HashMap<String, Config>>
+** Compare
+   Consider the following data structure:
+HashMap<service_name:String, HashMap<process_name:String, Config>>
+
+For each service in tm_struct:
+Browse the hashmap 1 looking for service_name == Service::service_name
+If no match => REMOVE SERVICE
+If match => { for each thread in service: {
+		browse the hashmap 2 looking for process_name == SErvice::thread_name (in the hashmap)
+		if no match => Remove thread
+		if match => {
+			Compare content of config :
+			if difference on fatal point, kill and re-launch, in the map,
+			othwerwise edit value in both process local value and thread public config
+			numproc ??? Consider it a fatal change ? Or spawn-dwpawn current - new ?
+		}
+	}
+}
+
+keyword :: iterator::filter_map

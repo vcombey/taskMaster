@@ -46,7 +46,7 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()>
     //println!("Request: {:?}", cmd);
     
     let response = tm.try_receive_from_threads()
-        .unwrap_or(String::from("pb receiving from threads"));
+        .unwrap_or(String::from("Problem receiving from threads"));
     let response_err = match tm.exec_cmd(cmd) {
         Err(e) => format!("{}", e),
         Ok(_) => format!(""),

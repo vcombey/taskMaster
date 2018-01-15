@@ -97,7 +97,7 @@ impl Target {
 
 			// Retrieving exact pattern of target
             match (service, process) {
-                (service_name, &"") => Err("Missing process name. Type 'help' to see different commands and syntaxs".to_string()), // No process name
+                (_, &"") => Err("Missing process name. Type 'help' to see different commands and syntaxs".to_string()), // No process name
                 (service_name, &"*") => Ok(Target::Service(service_name.to_string())), // ALL with *
                 (service_name, process_name) => Ok(Target::ServiceProcess((service_name.to_string(), process_name.to_string()))), // Expected service:process
             }

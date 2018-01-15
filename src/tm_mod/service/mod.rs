@@ -50,23 +50,26 @@ impl Service {
         ExecErrors::result_from_e_vec(e)
     }
 
+    fn launch_thread(&mut self, config: Config, sender_to_main: mpsc::Sender<String>) -> (std_thread::JoinHandle<()>, mpsc::Sender<Instruction>) {
+        let (sender, receiver) = mpsc::channel();
+        let handle = std_thread::spawn(move || {
+            let mut process = Process::new(config, receiver, sender_to_main);
+            process.manage_program();
+        });
+        (handle, sender)
+    }
+
     pub fn launch_from_hash(&mut self, map: HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
         for (name, config) in map.into_iter() {
             println!("name: {}", name);
-            let mut handles = Vec::with_capacity(config.numprocs);
-            let mut senders = Vec::with_capacity(config.numprocs);
+            let mut handle_vec = Vec::with_capacity(config.numprocs);
+            let mut sender_vec = Vec::with_capacity(config.numprocs);
             for _i in 0..config.numprocs {
-                let (sender, receiver) = mpsc::channel();
-                let clone_config = config.clone();
-                let clone_sender_to_main = sender_to_main.clone();
-                let handle = std_thread::spawn(move || {
-                    let mut process = Process::new(clone_config, receiver, clone_sender_to_main);
-                    process.manage_program();
-                });
-                handles.push(handle);
-                senders.push(sender);
+                let (handle, sender) = self.launch_thread(config.clone(), sender_to_main.clone());
+                handle_vec.push(handle);
+                sender_vec.push(sender);
             }
-            self.thread_hash.insert(name.clone(), Thread::new(config, handles, senders));
+            self.thread_hash.insert(name.clone(), Thread::new(config, handle_vec, sender_vec));
         }
     }
 }

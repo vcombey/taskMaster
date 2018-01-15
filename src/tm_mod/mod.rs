@@ -44,6 +44,7 @@ impl<'tm> TmStruct<'tm> {
         }
     }
 
+
     fn send_to_process(&self, p_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
         for (_, service) in self.service_hash.iter() {
             if service.contains_process(p_name) {
@@ -88,7 +89,7 @@ impl<'tm> TmStruct<'tm> {
                 Target::ServiceProcess((s_name, p_name)) => self.send_to_service_process(&s_name, &p_name, ins),
             }.err()
         }).flat_map(|e| e.e_vect.into_iter())
-        .collect();
+            .collect();
         ExecErrors::result_from_e_vec(e)//.map_err(|e| println!("error is: {}",e));
     }
 
@@ -146,7 +147,7 @@ impl<'tm> TmStruct<'tm> {
                 }
                 // Insert into little map
                 process_map.insert(String::from(process_name),
-                Config::from_yaml(process_name, argv, process_config));
+                                   Config::from_yaml(process_name, argv, process_config));
                 taken_process_names.push(process_name);
             }
             // Check if a service / process with the same name already exists
@@ -158,19 +159,50 @@ impl<'tm> TmStruct<'tm> {
         }
         return service_hash;
     }
+
     pub fn try_receive_from_threads(&self) -> Result<String, mpsc::TryRecvError>{
         self.receiver_from_threads.try_recv()
     }
+
+    /// Function used to reload the config file. Only changes that
+    /// affect runtime behavior trigger despawn-respawn of the
+    /// process. If a process / service no longer exists in the config
+    /// file, it is despawned. Each data structure has the
+    /// reponsibility to handle the clean removal of the data
+    /// structure it contains.
+    pub fn reread(&mut self) {
+        // Loading the map of configs
+        let reread_big_hash = self.hash_config();
+
+        // Browse the hash of services. If the hashkey cannot be found
+        // in the new config, the service is despawned and removed
+        // from HashMap.
+
+        self.service_hash.retain( |service_name, service| { // Every element for wich this function returns false is removed from the HashMap
+            match reread_big_hash.get(service_name) {
+                None => { service.send_to_all_process(Instruction::SHUTDOWN); false },
+                Some(_) => true,
+            }
+        }
+        );
+
+        // Browse the remaining service in the hash and repeat process with the process in each service.
+        // self.service_hash.iter
+    }
 }
+
+// big_map.get(&service_name).map_or_else( || -> Option<Service> {
+// });
 
 
 #[cfg(test)]
 mod test {
-#[test]
+
+    #[test]
     fn test_bad_file() {
     }
-#[test]
+
+    #[test]
     fn test_bad_yaml() {
     }
-
 }
