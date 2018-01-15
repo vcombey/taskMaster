@@ -6,7 +6,8 @@ use std::time::Instant;
 use std::os::unix::process::CommandExt;
 use std::os::unix::process::ExitStatusExt;
 use std::io::Error;
-
+use std::thread::sleep;
+use std::time::Duration;
 use nix::sys::stat::umask;
 use nix::sys::stat::Mode;
 use nix::sys::signal::kill;
@@ -215,6 +216,25 @@ impl Process {
                 Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
             }
         }
+        let now = Instant::now();
+        loop {
+            let nownow = Instant::now();
+            let duree = nownow.duration_since(now);
+            sleep(Duration::from_millis(10));
+
+            if self.try_wait() == State::BACKOFF {
+                self.child = None;
+                return ;
+            }
+            if duree > self.config.stoptime {
+                if let Some(ref mut child) = self.child {
+                    match child.kill() {
+                        Ok(_) => {;}, 
+                        Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
+                    }
+                }
+            }
+        }
     }
 
     fn status(&mut self) {
@@ -242,7 +262,7 @@ impl Process {
     pub fn manage_program(&mut self) {
         self.state = self.try_execute();
 
-        eprintln!("config: {:#?}", self.config);
+        //eprintln!("config: {:#?}", self.config);
         loop {
             match self.receiver.try_recv() {
                 Ok(ins) => {
