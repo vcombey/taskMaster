@@ -3,33 +3,31 @@ extern crate liner;
 
 use liner::Context;
 use task_master::tm_mod::cmd::Cmd;
-use task_master::tm_mod::cmd::Instruction;
-use task_master::cli::*;
+use task_master::cli;
 
 
 fn parse_into_cmd(line: &str) -> Option<Cmd> {
-    let mut split = line.split(" ");
+    let line: Vec<&str> = line.split(" ").collect();
 
-    let first = split.next()?;
-    match first
-    {
-        "help" => {
-            match split.next() {
-                Some(value) => match value {
-                    "start" => println!("{}", HELP_START),
-                    "restart" => println!("{}", HELP_RESTART),
-                    "stop" => println!("{}", HELP_STOP),
-                    "reload" => println!("{}", HELP_RELOAD),
-                    "status" => println!("{}", HELP_STATUS),
-                    "shutdown" => println!("{}", HELP_SHUTDOWN),
-                    &_ => println!("no help for that"),
+    match line.get(0) {
+        Some(&"help") => {
+            match line.get(1) {
+                Some(value) => match *value {
+                    "start" => {println!("{}", cli::HELP_START);None},
+                    "restart" => {println!("{}", cli::HELP_RESTART);None},
+                    "stop" => {println!("{}", cli::HELP_STOP);None},
+                    "reload" => {println!("{}", cli::HELP_RELOAD);None},
+                    "status" => {println!("{}", cli::HELP_STATUS);None},
+                    "shutdown" => {println!("{}", cli::HELP_SHUTDOWN);None},
+                    "" => {println!("{}", cli::HELP_DISPLAY);None},
+                    _ => {println!("{}", cli::HELP_DISPLAY);None},
                 },
-                None => println!("{}", HELP_DISPLAY),
-            };
-            None
+                None => {println!("{}", cli::HELP_DISPLAY);None},
+            }
         },
-        _ => {
-            match Cmd::from_line(line) {
+        Some(&"") | Some(&"\n") => None,
+        Some(_) => {
+            match Cmd::from_vec(line) {
                 Ok(cmd) => Some(cmd),
                 Err(e) => {
                     eprintln!("{}", e);
@@ -37,74 +35,57 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
                 }
             }
         },
-    }
-
-    /*
-    */
-}
-
-#[cfg(test)]
-mod test {
-    use parse_into_cmd;
-    use task_master::tm_mod::cmd::Cmd;
-    use task_master::tm_mod::cmd::Instruction;
-    use task_master::tm_mod::cmd::Target;
-
-#[test]
-    fn cmd_vide() {
-        assert_eq!(parse_into_cmd(""), None);
-    }
-#[test]
-    fn help() {
-        assert_eq!(parse_into_cmd("help"), None);
-        assert_eq!(parse_into_cmd("help fsfsd"), None);
-        assert_eq!(parse_into_cmd("help status"), None);
-    }
-#[test]
-    fn one_cmd() {
-        let instruction_vect :Vec<(&str, Instruction)> = 
-            vec![("start" , Instruction::START),
-            ("restart" , Instruction::RESTART),
-            ("stop" , Instruction::STOP),
-            ("reload" , Instruction::RELOAD),
-            ("status" , Instruction::STATUS),
-            ("shutdown" , Instruction::SHUTDOWN)];
-
-        for (ins_str, ins) in instruction_vect {
-            assert_eq!(parse_into_cmd(&format!("{} {}", ins_str, "cmd1")), 
-                       Some(Cmd::new(ins, 
-                                     vec![Target::Process(String::from("cmd1"))])));
-
-            assert_eq!(parse_into_cmd(&format!("{} {}:{}", ins_str, "serv1", "cmd1")),
-                       Some(Cmd::new(ins,
-                          vec![Target::ServiceProcess(
-                              (String::from("serv1"), String::from("cmd1")))])));
-
-            assert_eq!(parse_into_cmd(&format!("{} {}:*", ins_str, "serv1")),
-                       Some(Cmd::new(ins,
-                          vec![Target::Service(
-                              String::from("serv1"))])));
-        
-            assert_eq!(parse_into_cmd(ins_str), 
-                   Some(Cmd::new(ins,
-                                 Vec::new())));
-        }
-    }
-#[test]
-    fn double_point() {
-        assert_eq!(parse_into_cmd(":::::::"), None);
-        assert_eq!(parse_into_cmd(":"), None);
-        assert_eq!(parse_into_cmd("lala:"), None);
-        assert_eq!(parse_into_cmd(":lala"), None);
+        None => None,
     }
 }
 
 fn main() {
     let mut con = Context::new();
     loop {
-        let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
-        let cmd = parse_into_cmd(&res);
-        //println!("{:?}", cmd);
-        con.history.push(res.into());
+        let _res = con.read_line("task_master> ", &mut |_| {}).unwrap();
     }
 }
+
+#[cfg(test)]
+pub mod test_parse_into_cmd{
+    use super::*;
+    use task_master::tm_mod::cmd::*;
+
+    #[test]
+    fn cmd_empty() {
+        assert_eq!(parse_into_cmd(""), None);
+    }
+
+    #[test]
+    fn help() {
+        assert_eq!(parse_into_cmd("help"), None);
+        assert_eq!(parse_into_cmd("help fsfsd"), None);
+        assert_eq!(parse_into_cmd("help status"), None);
+    }
+
+    #[test]
+    fn double_point() {
+        assert_eq!(parse_into_cmd(":::::::"), None);
+        assert_eq!(parse_into_cmd("lol::lol"), None);
+        assert_eq!(parse_into_cmd(":"), None);
+        assert_eq!(parse_into_cmd("lala:"), None);
+        assert_eq!(parse_into_cmd(":lala"), None);
+    }
+
+    #[test]
+    fn test_cmd_parse_many_process() {
+        assert_eq!(parse_into_cmd("start process_one process_two").unwrap(),
+                   Cmd::new(Instruction::START,
+                       vec![Target::Process("process_one".to_string()), Target::Process("process_two".to_string())],
+                   ));
+    }
+
+    #[test]
+    fn test_cmd_mix() {
+        assert_eq!(parse_into_cmd("start process_one service_one:process_two").unwrap(),
+                   Cmd::new(Instruction::START,
+                       vec![Target::Process("process_one".to_string()), Target::ServiceProcess(("service_one".to_string(), "process_two".to_string()))],
+                   ));
+    }
+}
+
