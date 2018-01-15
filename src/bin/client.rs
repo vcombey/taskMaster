@@ -27,11 +27,9 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
         },
         Some(&"") | Some(&"\n") => None, // Empty line doesnt trigger parsing
         Some(_) => { // Parse and discard error
-            Cmd::from_vec(line).map_err(|e| eprintln!("{}", e;))
+            Cmd::from_vec(line).map_err(|e| eprintln!("{}", e))
                 .ok()
-                }
-            }
-        },
+                },
         None => None,
     }
 }
