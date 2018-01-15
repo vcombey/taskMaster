@@ -47,7 +47,7 @@ impl<'tm> TmStruct<'tm> {
     fn send_to_process(&self, p_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
         for (_, service) in self.service_hash.iter() {
             if service.contains_process(p_name) {
-                return service.send_to_process(p_name, ins);
+                return service.send_to_process(p_name, None, ins);
             }
         }
         ExecErrors::result_from_e_vec(vec![ExecError::ProcessName(String::from(p_name))])
@@ -70,12 +70,12 @@ impl<'tm> TmStruct<'tm> {
             .and_then(|s| s.send_to_all_process(ins))
     }
 
-    fn send_to_service_process(&self, s_name: &str, p_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
+    fn send_to_service_process(&self, s_name: &str, p_name: &str, thread_id: Option<usize>, ins: Instruction) -> Result<(), ExecErrors> {
         let service = self.service_hash.get(s_name)
             .ok_or(ExecError::ServiceName(String::from(s_name)));
 
         service.map_err(|e| ExecErrors{e_vect: vec![e]})
-            .and_then(|s| s.send_to_process(p_name, ins))
+            .and_then(|s| s.send_to_process(p_name, thread_id, ins))
     }
 
     pub fn exec_cmd(&mut self, cmd: Cmd) -> Result<(), ExecErrors> {
@@ -85,7 +85,7 @@ impl<'tm> TmStruct<'tm> {
                 Target::ALL => self.send_to_all_service(ins),
                 Target::Process(p_name) => self.send_to_process(&p_name, ins),
                 Target::Service(s_name) => self.send_to_service(&s_name, ins),
-                Target::ServiceProcess((s_name, p_name)) => self.send_to_service_process(&s_name, &p_name, ins),
+                Target::ServiceProcess((s_name, p_name, thread_id)) => self.send_to_service_process(&s_name, &p_name, thread_id, ins),
             }.err()
         }).flat_map(|e| e.e_vect.into_iter())
         .collect();

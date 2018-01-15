@@ -10,6 +10,8 @@ pub enum ExecError {
     ServiceName(String),
     /// Sending to thread error
     Sending((String, usize)),
+    /// Thread out of range
+    ThreadOutofRange((String, usize)),
 }
 
 impl error::Error for ExecError {
@@ -18,7 +20,9 @@ impl error::Error for ExecError {
             ExecError::ProcessName(_) => "no process with name",
             ExecError::ServiceName(_) => "no service with name",
             ExecError::Sending(_) => 
-                "problem while sending to to thread",
+                "problem while sending to to thread for process, id:",
+            ExecError::ThreadOutofRange(_) => 
+                "thread out of range for process, id :",
         }
     }
 }
@@ -30,6 +34,8 @@ impl fmt::Display for ExecError {
             ExecError::ServiceName(ref name) => write!(f, "{} {}", self.description(), name),
             ExecError::Sending((ref p_name, thread_id)) =>
                 write!(f, "{} {} {}", self.description(), p_name, thread_id),
+            ExecError::ThreadOutofRange((ref p_name, thread_id)) =>
+                write!(f, "{} {},{}", self.description(), p_name, thread_id),
         }
         
     }

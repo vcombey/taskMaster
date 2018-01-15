@@ -20,7 +20,7 @@ pub enum Target {
     ALL,
     Process(String),
     Service(String),
-    ServiceProcess((String, String)),
+    ServiceProcess((String, String, Option<usize>)),
 }
 
 /// The struct that will be sent to the server, representing the
@@ -73,31 +73,37 @@ impl Target {
     pub fn from_str(chunk: &str) -> Result<Target, String> {
         if chunk.contains(":") { // The string is potentially under the form service:process
             // Extract the service, and then the process.
-            let mini_vec: Vec<&str>= chunk.split(":").collect();
+            let chunk_split: Vec<&str>= chunk.split(":").collect();
 
             // Service
-            let service = match mini_vec.get(0) {
+            let service = match chunk_split.get(0) {
                 Some(service) => service,
                 None => return Err(format!("Missing service name. Type 'help' to see different commands and syntaxs")),
             };
 
 			// Process
-            let process = match mini_vec.get(1) {
+            let process = match chunk_split.get(1) {
                 Some(process_name) => process_name,
-                None => return Err("Missing process name. Type 'help' to see different commands and syntaxs".to_string()),
+                None => return Err(format!("Missing process name. Type 'help' to see different commands and syntaxs")),
             };
 
-            // Making sure there isnt an invalid syntax like service:process:invalid
-            if let Some(val) = mini_vec.get(2) {                 if *val != "" {
-                    return Err("Process is the bottom level of the hierarchy: Do not add ':' after a process".to_string());
-                }
-            }
+            // thread_id
+            let thread_id = match chunk_split.get(2) {
+                Some(id) => match usize::from_str_radix(id, 10) {
+                    Ok(id) => Some(id),
+                    Err(_) => return Err(format!("bad number id for thread")),
+                },
+                None => None,
+            };
 
-			// Retrieving exact pattern of target
-            match (service, process) {
-                (service_name, &"") => Err("Missing process name. Type 'help' to see different commands and syntaxs".to_string()), // No process name
-                (service_name, &"*") => Ok(Target::Service(service_name.to_string())), // ALL with *
-                (service_name, process_name) => Ok(Target::ServiceProcess((service_name.to_string(), process_name.to_string()))), // Expected service:process
+            // Retrieving exact pattern of target
+            match (service, process, thread_id) {
+                // No process name
+                (service_name, &"", _) => Err("Missing process name. Type 'help' to see different commands and syntaxs".to_string()),
+                // ALL with *
+                (service_name, &"*", _) => Ok(Target::Service(service_name.to_string())), 
+                // Expected service:process
+                (service_name, process_name, thread_id) => Ok(Target::ServiceProcess((service_name.to_string(), process_name.to_string(), thread_id))),
             }
 
             // End of service:process
@@ -120,10 +126,10 @@ pub mod test_cmd {
             instruction: Instruction::START,
             target_vec: vec![Target::ALL],
         },
-                   Cmd {
-                       instruction: Instruction::START,
-                       target_vec: vec![Target::ALL],
-                   });
+        Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::ALL],
+        });
     }
 
     #[test]
@@ -132,10 +138,10 @@ pub mod test_cmd {
             instruction: Instruction::SHUTDOWN,
             target_vec: vec![Target::ALL],
         },
-                   Cmd {
-                       instruction: Instruction::START,
-                       target_vec: vec![Target::ALL],
-                   });
+        Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::ALL],
+        });
     }
 
     #[test]
@@ -144,10 +150,10 @@ pub mod test_cmd {
             instruction: Instruction::START,
             target_vec: vec![Target::Process(String::from("Lorem ipsum"))],
         },
-                   Cmd {
-                       instruction: Instruction::START,
-                       target_vec: vec![Target::Process(String::from("Lorem ipsum"))],
-                   });
+        Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::Process(String::from("Lorem ipsum"))],
+        });
     }
 
     #[test]
@@ -156,10 +162,10 @@ pub mod test_cmd {
             instruction: Instruction::START,
             target_vec: vec![Target::Process(String::from("Lorem ipsum"))],
         },
-                   Cmd {
-                       instruction: Instruction::START,
-                       target_vec: vec![Target::Service(String::from("Lorem ipsum"))],
-                   });
+        Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::Service(String::from("Lorem ipsum"))],
+        });
     }
 
     #[test]
@@ -168,28 +174,28 @@ pub mod test_cmd {
             instruction: Instruction::START,
             target_vec: vec![Target::Service(String::from("Lorem"))],
         },
-                   Cmd {
-                       instruction: Instruction::START,
-                       target_vec: vec![Target::Service(String::from("Lorem ipsum"))],
-                   });
+        Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::Service(String::from("Lorem ipsum"))],
+        });
     }
 
     #[test]
     fn test_cmd_simple_process_r() {
         assert_eq!(Cmd::from_vec(vec!["start", "process_name"]).unwrap(),
-                   Cmd {
-                       instruction: Instruction::START,
-                       target_vec: vec![Target::Process("process_name".to_string())],
-                   });
+        Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::Process("process_name".to_string())],
+        });
     }
 
     #[test]
     fn test_cmd_simple_process_w() {
         assert_ne!(Cmd::from_vec(vec!["start", "process_name"]).unwrap(),
-                   Cmd {
-                       instruction: Instruction::START,
-                       target_vec: vec![Target::Service("process_name".to_string())],
-                   });
+        Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::Service("process_name".to_string())],
+        });
     }
 
     #[test]
@@ -201,28 +207,28 @@ pub mod test_cmd {
     #[test]
     fn test_cmd_simple_service_process() {
         assert_eq!(Cmd::from_vec(vec!["start","service_name:process_name"]).unwrap(),
-                   Cmd {
-                       instruction: Instruction::START,
-                       target_vec: vec![Target::ServiceProcess(("service_name".to_string() ,"process_name".to_string()))],
-                   });
+        Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::ServiceProcess(("service_name".to_string() ,"process_name".to_string()))],
+        });
     }
 
     #[test]
     fn test_cmd_many_process() {
         assert_eq!(Cmd::from_vec(vec!["start","process_one", "process_two"]).unwrap(),
-                   Cmd {
-                       instruction: Instruction::START,
-                       target_vec: vec![Target::Process("process_one".to_string()), Target::Process("process_two".to_string())],
-                   });
+        Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::Process("process_one".to_string()), Target::Process("process_two".to_string())],
+        });
     }
 
     #[test]
     fn test_cmd_all() {
         assert_eq!(Cmd::from_vec(vec!["start","all"]).unwrap(),
-                   Cmd {
-                       instruction: Instruction::START,
-                       target_vec: vec![Target::ALL],
-                   });
+        Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::ALL],
+        });
     }
 
     #[test]
@@ -234,10 +240,10 @@ pub mod test_cmd {
     fn test_cmd_mix() {
         eprintln!("{:?}", Cmd::from_vec(vec!["start","process_one", "service_one:process_two"]));
         assert_eq!(Cmd::from_vec(vec!["start","process_one", "service_one:process_two"]).unwrap(),
-                   Cmd {
-                       instruction: Instruction::START,
-                       target_vec: vec![Target::Process("process_one".to_string()), Target::ServiceProcess(("service_one".to_string(), "process_two".to_string()))],
-                   });
+        Cmd {
+            instruction: Instruction::START,
+            target_vec: vec![Target::Process("process_one".to_string()), Target::ServiceProcess(("service_one".to_string(), "process_two".to_string()))],
+        });
     }
     #[test]
     fn invalid_dsemi() {
