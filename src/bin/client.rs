@@ -4,7 +4,6 @@ extern crate liner;
 extern crate serde;
 extern crate serde_json;
 
-
 use liner::Context;
 
 use std::net::TcpStream;
@@ -55,7 +54,10 @@ fn emit<T>(stream: &mut TcpStream, t: T)
 fn main() {
     let mut con = Context::new();
     loop {
-        let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
+        let res = match con.read_line("task_master> ", &mut |_| {}) {
+            Ok(res) => res,
+            Err(_) => { return; },
+        };
         let cmd = parse_into_cmd(&res);
         if cmd.is_some() {
             let mut buffer = String::new();
