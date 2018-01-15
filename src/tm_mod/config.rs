@@ -27,7 +27,7 @@ pub struct Config {
     pub stderr: Option<String>,
     pub exitcodes: Vec<i64>,
     pub startretries: u64,
-    pub umask: i64,
+    pub umask: u16,
     pub autorestart: Autorestart,
     pub starttime: Duration,
     pub stopsignal: i64,
@@ -85,7 +85,7 @@ impl Config {
                 None => 3,
             },
             umask: match umask {
-                Some(i) => i,
+                Some(i) => i as u16,
                 None => 0700,
             },
             autorestart: match autorestart { //TODO: voir ce que c'est

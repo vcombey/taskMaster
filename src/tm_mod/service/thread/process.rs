@@ -3,6 +3,12 @@ use std::fs::File;
 use std::process::Child;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
+use std::os::unix::process::CommandExt;
+extern crate nix;
+use self::nix::sys::stat::umask;
+use self::nix::sys::stat::Mode;
+
+use std::io::Error;
 
 #[derive(Debug,PartialEq)]
 enum State {
@@ -78,6 +84,19 @@ impl Process {
         self
     }
 
+    fn add_umask(&mut self) -> &mut Process {
+        let conf_umask = self.config.umask;
+
+        let call_umask = move || -> Result<(), Error> {
+            let mode = Mode::from_bits(conf_umask).unwrap();
+            umask(mode);
+            Ok(())
+        };
+
+        self.command.before_exec(call_umask);
+        self
+    }
+
     fn spawn(&mut self) -> &mut Process {
         let child = self.command.spawn();
         if let Ok(child) = child {
@@ -92,6 +111,7 @@ impl Process {
             .add_env()
             .add_stdout()
             .add_stderr()
+            .add_umask()
             .spawn()
     }
     fn try_wait(&mut self) -> State{ 
