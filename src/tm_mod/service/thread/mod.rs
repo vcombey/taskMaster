@@ -9,26 +9,26 @@ use tm_mod::exec_error::ExecError;
 #[derive(Debug)]
 pub struct Thread {
     config: Config,
-    sender: Vec<Sender<Instruction>>,
+    sender: Vec<Sender<(Instruction, Option<Config>)>>,
     join_handle: Option<Vec<JoinHandle<()>>>,
 }
 
 impl Thread {
-    pub fn new(config: Config, join_handle: Vec<JoinHandle<()>>, sender: Vec<Sender<Instruction>>) -> Thread {
+    pub fn new(config: Config, join_handle: Vec<JoinHandle<()>>, sender: Vec<Sender<(Instruction, Option<Config>)>>) -> Thread {
         Thread {
             config,
             join_handle: Some(join_handle),
             sender,
         }
     }
-    pub fn send(&self, thread_id: Option<usize>, ins: Instruction, nb_receive: &mut usize) -> Result<(), ExecErrors> {
+    pub fn send(&self, thread_id: Option<usize>, ins: Instruction, conf: Option<Config>, nb_receive: &mut usize) -> Result<(), ExecErrors> {
         let e: Vec<ExecError> = match thread_id {
             Some(id) => match self.sender.get(id) {
                 None => vec![ExecError::ThreadOutofRange((self.config.name.clone(), id))],
-                Some(s) => s.send(ins).map_err(|_| ExecError::Sending((self.config.name.clone(), id))).and_then(|_| {*nb_receive+=1; Ok(())}).err().into_iter().collect(),
+                Some(s) => s.send((ins, conf.clone())).map_err(|_| ExecError::Sending((self.config.name.clone(), id))).and_then(|_| {*nb_receive+=1; Ok(())}).err().into_iter().collect(),
             },
             None => self.sender.iter().enumerate().filter_map(|(i, s)| {
-                s.send(ins).map_err(|_| ExecError::Sending((self.config.name.clone(), i))).and_then(|_| {*nb_receive+=1; Ok(())}).err()
+                s.send((ins, conf.clone())).map_err(|_| ExecError::Sending((self.config.name.clone(), i))).and_then(|_| {*nb_receive+=1; Ok(())}).err()
             }).collect(),
         };
 
@@ -42,7 +42,7 @@ impl Drop for Thread {
         println!("Sending terminate message to all workers.");
 
         let mut nb_receive = 0;
-        self.send(None, Instruction::SHUTDOWN, &mut nb_receive);
+        self.send(None, Instruction::SHUTDOWN, None, &mut nb_receive);
 
         println!("Shutting down all workers.");
 

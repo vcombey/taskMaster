@@ -38,12 +38,12 @@ impl Service {
             .ok_or(ExecError::ProcessName(String::from(p_name)));
 
         thread.map_err(|e| ExecErrors{e_vect: vec![e]})
-            .and_then(|t| t.send(thread_id, ins, nb_receive))
+            .and_then(|t| t.send(thread_id, ins, None, nb_receive))
     }
 
     pub fn send_to_all_process(&self, ins: Instruction, nb_receive: &mut usize) -> Result<(), ExecErrors>  {
         let e: Vec<ExecError> = self.thread_hash.values()
-            .filter_map(|t| t.send(None, ins, nb_receive).err())
+            .filter_map(|t| t.send(None, ins, None, nb_receive).err())
             .flat_map(|e| e.e_vect.into_iter())
             .collect();
 

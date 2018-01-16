@@ -5,7 +5,7 @@ pub enum Instruction {
     START,
     RESTART,
     STOP,
-    RELOAD,
+    REREAD,
     STATUS,
     SHUTDOWN,
 }
@@ -46,7 +46,7 @@ impl Cmd {
             &"start" => Instruction::START,
             &"restart" => Instruction::RESTART,
             &"stop" => Instruction::STOP,
-            &"reload" => Instruction::RELOAD,
+            &"reread" => Instruction::REREAD,
             &"status" => Instruction::STATUS,
             &"shutdown" => Instruction::SHUTDOWN,
             &value => return Err(ParseError::InvalidCommand(value.to_string())),

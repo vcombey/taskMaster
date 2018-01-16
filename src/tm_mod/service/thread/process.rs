@@ -32,7 +32,7 @@ pub struct Process {
     command: Command,
     config: Config,
     sender: Sender<String>,
-    receiver: Receiver<Instruction>,
+    receiver: Receiver<(Instruction, Option<Config>)>,
     child: Option<Child>,
     state: State,
 }
@@ -43,7 +43,7 @@ impl Process {
     /// a Receiver from the main thread,
     /// a Sender to the main thread.
     /// And set child to None and state to State::UNLAUNCHED
-    pub fn new(config: Config, receiver: Receiver<Instruction>, sender: Sender<String>) -> Process {
+    pub fn new(config: Config, receiver: Receiver<(Instruction, Option<Config>)>, sender: Sender<String>) -> Process {
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
             config,
@@ -289,7 +289,7 @@ impl Process {
             Instruction::RESTART => { ;
                 format!("{}\n{}",self.stop(), self.try_execute())
             },
-            Instruction::RELOAD => { ;
+            Instruction::REREAD => { ;
                 format!("not implemented yet")
             },
             _ => { 
@@ -307,7 +307,7 @@ impl Process {
         //eprintln!("config: {:#?}", self.config);
         loop {
             match self.receiver.try_recv() {
-                Ok(ins) => {
+                Ok((ins, conf)) => {
                     eprintln!("INFO process '{}' receive {:?}", self.config.name, ins);
                     if ins == Instruction::SHUTDOWN {
                         break ;
