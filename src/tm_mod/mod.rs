@@ -83,7 +83,7 @@ impl<'tm> TmStruct<'tm> {
         let e: Vec<ExecError>  = cmd.target_vec.into_iter().filter_map(|target| {
             match target {
                 Target::ALL => self.send_to_all_service(ins),
-                Target::Process(p_name) => self.send_to_process(&p_name, ins),
+                Target::Process(p_name, _) => self.send_to_process(&p_name, ins),
                 Target::Service(s_name) => self.send_to_service(&s_name, ins),
                 Target::ServiceProcess((s_name, p_name, thread_id)) => self.send_to_service_process(&s_name, &p_name, thread_id, ins),
             }.err()

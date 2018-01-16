@@ -20,9 +20,9 @@ impl error::Error for ExecError {
             ExecError::ProcessName(_) => "no process with name",
             ExecError::ServiceName(_) => "no service with name",
             ExecError::Sending(_) => 
-                "problem while sending to to thread for process, id:",
+                "problem while sending to to thread for (process, thread_id):",
             ExecError::ThreadOutofRange(_) => 
-                "thread out of range for process, id :",
+                "thread out of range for (process, thread_id) :",
         }
     }
 }
@@ -33,9 +33,9 @@ impl fmt::Display for ExecError {
             ExecError::ProcessName(ref name) => write!(f, "{} {}", self.description(), name),
             ExecError::ServiceName(ref name) => write!(f, "{} {}", self.description(), name),
             ExecError::Sending((ref p_name, thread_id)) =>
-                write!(f, "{} {} {}", self.description(), p_name, thread_id),
+                write!(f, "{} ({},{})", self.description(), p_name, thread_id),
             ExecError::ThreadOutofRange((ref p_name, thread_id)) =>
-                write!(f, "{} {},{}", self.description(), p_name, thread_id),
+                write!(f, "{} ({},{})", self.description(), p_name, thread_id),
         }
         
     }

@@ -18,7 +18,7 @@ pub enum Instruction {
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum Target {
     ALL,
-    Process(String),
+    Process(String, Option<usize>),
     Service(String),
     ServiceProcess((String, String, Option<usize>)),
 }
@@ -41,7 +41,7 @@ impl Cmd {
     }
 
     /// Create a command from a vector of string.
-    pub fn from_vec(word_list: Vec<&str>) -> Result<Cmd, String> {
+    pub fn from_vec(word_list: Vec<&str>) -> Result<Cmd, ParseError> {
         let instruction =  match word_list.get(0).unwrap() {
             &"start" => Instruction::START,
             &"restart" => Instruction::RESTART,
@@ -49,7 +49,7 @@ impl Cmd {
             &"reload" => Instruction::RELOAD,
             &"status" => Instruction::STATUS,
             &"shutdown" => Instruction::SHUTDOWN,
-            &value => return Err(format!("Invalid command '{}'\n{}", value, cli::HELP_DISPLAY)),
+            &value => return Err(ParseError::InvalidCommand(value.to_string())),
         };
         let mut target_vec: Vec<Target> = Vec::new();
         if instruction != Instruction::SHUTDOWN {
@@ -59,9 +59,8 @@ impl Cmd {
                     target_vec.push(ret);
                 }
             } else {
-                return Err("Missing target".to_string());
+                return Err(ParseError::MissingTarget);
             }
-            // Some(["", ..]) => return Err(format!("Missing target")),
         }
         Ok(Cmd {instruction, target_vec,})
     }
@@ -70,49 +69,77 @@ impl Cmd {
 impl Target {
     /// Receives a string that represents a target, returns the
     /// correct Target enum that fits the pattern.
-    pub fn from_str(chunk: &str) -> Result<Target, String> {
-        if chunk.contains(":") { // The string is potentially under the form service:process
-            // Extract the service, and then the process.
-            let chunk_split: Vec<&str>= chunk.split(":").collect();
+    pub fn from_str(chunk: &str) -> Result<Target, ParseError> {
+        let chunk_split: Vec<&str>= chunk.split(":").collect();
 
-            // Service
-            let service = match chunk_split.get(0) {
-                Some(service) => service,
-                None => return Err(format!("Missing service name. Type 'help' to see different commands and syntaxs")),
-            };
+        // Retrieving exact pattern of target
+        match (chunk_split.get(0), chunk_split.get(1), chunk_split.get(2)) {
+            // All
+            (Some(all), None, None) if all.to_lowercase() == "all" => Ok(Target::ALL),
+            // process
+            (Some(process_name), None, None) => Ok(Target::Process(process_name.to_string(), None)),
+            // missing service:
+            (Some(&""), _, _) => Err(ParseError::MissingService),
+            // missing process:
+            (_, Some(&""), _) => Err(ParseError::MissingProcess),
+            // service:*
+            (Some(service_name), Some(&"*"), _) => Ok(Target::Service(service_name.to_string())), 
+            // service:process || process:thread_id
+            (Some(name1), Some(name2), None) => match usize::from_str_radix(name2, 10) {
+                Ok(id) => Ok(Target::Process(name1.to_string(), Some(id))),
+                Err(_) => Ok(Target::ServiceProcess((name1.to_string(), name2.to_string(), None))),
+            },
+            // service:process:thread_id
+            (Some(service_name), Some(process_name), Some(thread_id)) => match usize::from_str_radix(thread_id, 10) {
+                Ok(id) => Ok(Target::ServiceProcess((service_name.to_string(), process_name.to_string(), Some(id)))),
+                Err(_) => Err(ParseError::BadThreadId),
+            },
+            _ => Err(ParseError::UnexpectedError),
+        } 
+    }
+}
 
-			// Process
-            let process = match chunk_split.get(1) {
-                Some(process_name) => process_name,
-                None => return Err(format!("Missing process name. Type 'help' to see different commands and syntaxs")),
-            };
+use std::fmt;
+use std::error;
+use std::error::Error;
 
-            // thread_id
-            let thread_id = match chunk_split.get(2) {
-                Some(id) => match usize::from_str_radix(id, 10) {
-                    Ok(id) => Some(id),
-                    Err(_) => return Err(format!("bad number id for thread")),
-                },
-                None => None,
-            };
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub enum ParseError {
+    MissingProcess,
+    MissingService,
+    BadThreadId,
+    MissingTarget,
+    UnexpectedError,
+    InvalidCommand(String),
+}
 
-            // Retrieving exact pattern of target
-            match (service, process, thread_id) {
-                // No process name
-                (service_name, &"", _) => Err("Missing process name. Type 'help' to see different commands and syntaxs".to_string()),
-                // ALL with *
-                (service_name, &"*", _) => Ok(Target::Service(service_name.to_string())), 
-                // Expected service:process
-                (service_name, process_name, thread_id) => Ok(Target::ServiceProcess((service_name.to_string(), process_name.to_string(), thread_id))),
-            }
-
-            // End of service:process
-        } else { 	// Single word pattern, either all or process_name
-            match chunk {
-                "all" | "ALL" | "All" => Ok(Target::ALL),
-                process_name => Ok(Target::Process(process_name.to_string())),
-            }
+impl error::Error for ParseError {
+    fn description(&self) -> &str {
+        match *self {
+            ParseError::MissingProcess => 
+                "Missing process name. Type 'help' to see different commands and syntaxs",
+            ParseError::MissingService =>
+                "Missing service name. Type 'help' to see different commands and syntaxs",
+            ParseError::BadThreadId => 
+                "bad parsing for thread id : must be a valid usize",
+            ParseError::UnexpectedError => "unexpected error",
+            ParseError::MissingTarget => "Missing target",
+            ParseError::InvalidCommand(_) => "Invalid command",
         }
+    }
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ParseError::MissingProcess |
+            ParseError::MissingService |
+            ParseError::BadThreadId |
+            ParseError::MissingTarget |
+            ParseError::UnexpectedError => write!(f, "{}", self.description()),
+            ParseError::InvalidCommand(ref name) => write!(f, "{} {}", self.description(), name),
+        }
+        
     }
 }
 
