@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::sync::mpsc;
 use std::io::Read;
+use std::time::Duration;
 
 // Sourcing submodules
 pub mod service;
@@ -78,15 +79,14 @@ impl<'tm> TmStruct<'tm> {
             .and_then(|s| s.send_to_process(p_name, thread_id, ins, nb_receive))
     }
 
-    pub fn exec_cmd(&mut self, cmd: Cmd) -> Result<(), ExecErrors> {
-        let mut nb_receive = 0;
+    pub fn exec_cmd(&mut self, cmd: Cmd, nb_receive: &mut usize) -> Result<(), ExecErrors> {
         let ins = cmd.instruction;
         let e: Vec<ExecError>  = cmd.target_vec.into_iter().filter_map(|target| {
             match target {
-                Target::ALL => self.send_to_all_service(ins, &mut nb_receive),
-                Target::Process(p_name, thread_id) => self.send_to_process(&p_name, thread_id, ins, &mut nb_receive),
-                Target::Service(s_name) => self.send_to_service(&s_name, ins, &mut nb_receive),
-                Target::ServiceProcess((s_name, p_name, thread_id)) => self.send_to_service_process(&s_name, &p_name, thread_id, ins, &mut nb_receive),
+                Target::ALL => self.send_to_all_service(ins, nb_receive),
+                Target::Process(p_name, thread_id) => self.send_to_process(&p_name, thread_id, ins, nb_receive),
+                Target::Service(s_name) => self.send_to_service(&s_name, ins, nb_receive),
+                Target::ServiceProcess((s_name, p_name, thread_id)) => self.send_to_service_process(&s_name, &p_name, thread_id, ins, nb_receive),
             }.err()
         }).flat_map(|e| e.e_vect.into_iter())
         .collect();
@@ -161,8 +161,15 @@ impl<'tm> TmStruct<'tm> {
         }
         return service_hash;
     }
-    pub fn try_receive_from_threads(&self) -> Result<String, mpsc::TryRecvError>{
-        self.receiver_from_threads.try_recv()
+    pub fn try_receive_from_threads(&self, nb_receive: usize, timeout: Duration) -> Result<String, mpsc::TryRecvError>{
+        let mut response = String::new();
+        for _ in 0..nb_receive {
+            match self.receiver_from_threads.recv_timeout(timeout) {
+                Ok(mess) => response = format!("{}\n{}", &response, &mess),
+                Err(e) => eprintln!("{}", e),
+            }
+        }
+        Ok(response)
     }
 }
 
