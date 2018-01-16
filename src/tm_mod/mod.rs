@@ -182,5 +182,4 @@ mod test {
 #[test]
     fn test_bad_yaml() {
     }
-
 }
