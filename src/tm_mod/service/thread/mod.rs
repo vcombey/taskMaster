@@ -41,8 +41,7 @@ impl Drop for Thread {
     fn drop(&mut self) {
         println!("Sending terminate message to all workers.");
 
-        let mut nb_receive = 0;
-        self.send(None, Instruction::SHUTDOWN, &mut nb_receive);
+        self.send(None, Instruction::SHUTDOWN, &mut 0);
 
         println!("Shutting down all workers.");
 

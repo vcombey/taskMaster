@@ -16,7 +16,7 @@ pub enum Autorestart {
 }
 
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Config {
     /// The Config struct represents all the informations we want
     /// to have about a single process we are supervising.

@@ -18,7 +18,7 @@ use tm_mod::exec_error::ExecError;
 #[derive(Debug)]
 pub struct Service {
     pub name: String,
-    thread_hash: HashMap<String, Thread>,
+    pub thread_hash: HashMap<String, Thread>,
 }
 
 impl Service {
@@ -59,8 +59,8 @@ impl Service {
         (handle, sender)
     }
 
-    pub fn launch_from_hash(&mut self, map: HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
-        for (name, config) in map.into_iter() {
+    pub fn launch_from_hash(&mut self, process_hash: HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
+        for (name, config) in process_hash.into_iter() {
             println!("name: {}", name);
             let mut handle_vec = Vec::with_capacity(config.numprocs);
             let mut sender_vec = Vec::with_capacity(config.numprocs);
@@ -73,6 +73,33 @@ impl Service {
         }
     }
 
-    fn reread(&mut self, reread_little_hash: HashMap<String, Config>) {
+    pub fn reread(&mut self, reread_little_hash: &mut HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
+
+        // Stop threads not found in the new hash but present in the old one
+        self.thread_hash.retain( |thread_name, thread| { // If ret is false elem is removed from HashMap
+            match reread_little_hash.get(thread_name) {
+                None => { thread.send(None, Instruction::SHUTDOWN, &mut 0);
+                          false },
+                Some(_) => true,
+            }
+        });
+
+        // Launch threads not found in the current thread_hash but present in the new one
+        reread_little_hash.retain( |new_thread_name, config| { // If ret is false elem is removed from HashMap
+            match self.thread_hash.get(new_thread_name) {
+                None => {
+                    let mut handle_vec = Vec::with_capacity(config.numprocs);
+                    let mut sender_vec = Vec::with_capacity(config.numprocs);
+                    for _i in 0..config.numprocs {
+                        let (handle, sender) = self.launch_thread(config.clone(), sender_to_main.clone());
+                        handle_vec.push(handle);
+                        sender_vec.push(sender);
+                    }
+                    self.thread_hash.insert(new_thread_name.clone(), Thread::new(config.clone(), handle_vec, sender_vec));
+                    false },
+                Some(_) => true,
+            }
+        });
+        // TREAT REMAINGS if fatal diff, kill + spawn new. If non fatal, update config => if numproc, spawn / despawn n threads with the name
     }
 }

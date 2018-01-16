@@ -1,17 +1,17 @@
-use super::super::cli;
+use super::config::Config;
 
-#[derive(Serialize, PartialEq, Deserialize, Copy, Clone, Debug)]
+#[derive(Serialize, PartialEq, Deserialize, Clone, Copy, Debug)]
 pub enum Instruction {
     START,
     RESTART,
     STOP,
+    // RELOAD(Option<Config>),
     RELOAD,
     STATUS,
     SHUTDOWN,
 }
 
-/// List of possible targets for an instruction.
-/// ALL -> Every single process in every service.
+/// List of possible targets for an instruction. /// ALL -> Every single process in every service.
 /// Process(p) -> The process with name p.
 /// Service(s) -> Every single process in service named s.
 /// ServiceProcess(s, p) -> The process name p in service s.
@@ -60,6 +60,9 @@ impl Cmd {
                 }
             } else {
                 return Err(ParseError::MissingTarget);
+            }
+            if target_vec.is_empty() {
+                target_vec.push(Target::ALL)
             }
         }
         Ok(Cmd {instruction, target_vec,})

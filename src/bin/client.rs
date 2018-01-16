@@ -117,7 +117,9 @@ pub mod test_parse_into_cmd{
 
     #[test]
     fn test_cmd_no_target() {
-        assert_eq!(parse_into_cmd("start"), None);
+        assert_eq!(parse_into_cmd("start").unwrap(),
+        Cmd::new(Instruction::START,
+                 vec![Target::ALL],));
     }
 }
 
