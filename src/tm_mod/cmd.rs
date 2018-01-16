@@ -152,7 +152,7 @@ impl fmt::Display for ParseError {
 #[cfg(test)]
 pub mod test_cmd {
     use super::*;
-/*
+
     #[test]
     fn test_eq_instruction_r() {
         assert_eq!(Cmd {
@@ -181,11 +181,11 @@ pub mod test_cmd {
     fn test_eq_targets_r() {
         assert_eq!(Cmd {
             instruction: Instruction::START,
-            target_vec: vec![Target::Process(String::from("Lorem ipsum"))],
+            target_vec: vec![Target::Process(String::from("Lorem ipsum"), None)],
         },
         Cmd {
             instruction: Instruction::START,
-            target_vec: vec![Target::Process(String::from("Lorem ipsum"))],
+            target_vec: vec![Target::Process(String::from("Lorem ipsum"), None)],
         });
     }
 
@@ -193,7 +193,7 @@ pub mod test_cmd {
     fn test_ne_targets_w() {
         assert_ne!(Cmd {
             instruction: Instruction::START,
-            target_vec: vec![Target::Process(String::from("Lorem ipsum"))],
+            target_vec: vec![Target::Process(String::from("Lorem ipsum"), None)],
         },
         Cmd {
             instruction: Instruction::START,
@@ -212,7 +212,6 @@ pub mod test_cmd {
             target_vec: vec![Target::Service(String::from("Lorem ipsum"))],
         });
     }
-    */
 
     #[test]
     fn test_cmd_simple_process_r() {
