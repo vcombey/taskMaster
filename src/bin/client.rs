@@ -107,7 +107,7 @@ pub mod test_parse_into_cmd{
     fn test_cmd_parse_many_process() {
         assert_eq!(parse_into_cmd("     start     process_one    process_two").unwrap(),
         Cmd::new(Instruction::START,
-                 vec![Target::Process("process_one".to_string()), Target::Process("process_two".to_string())],
+                 vec![Target::Process("process_one".to_string(), None), Target::Process("process_two".to_string(), None)],
                  ));
     }
 
@@ -115,7 +115,7 @@ pub mod test_parse_into_cmd{
     fn test_cmd_mix() {
         assert_eq!(parse_into_cmd("start process_one service_one:process_two").unwrap(),
         Cmd::new(Instruction::START,
-                 vec![Target::Process("process_one".to_string()), Target::ServiceProcess(("service_one".to_string(), "process_two".to_string()))],
+                 vec![Target::Process("process_one".to_string(), None), Target::ServiceProcess(("service_one".to_string(), "process_two".to_string(), None))],
                  ));
     }
 }
