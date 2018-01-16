@@ -44,10 +44,10 @@ impl<'tm> TmStruct<'tm> {
         }
     }
 
-    fn send_to_process(&self, p_name: &str, ins: Instruction) -> Result<(), ExecErrors> {
+    fn send_to_process(&self, p_name: &str, thread_id: Option<usize>, ins: Instruction) -> Result<(), ExecErrors> {
         for (_, service) in self.service_hash.iter() {
             if service.contains_process(p_name) {
-                return service.send_to_process(p_name, None, ins);
+                return service.send_to_process(p_name, thread_id, ins);
             }
         }
         ExecErrors::result_from_e_vec(vec![ExecError::ProcessName(String::from(p_name))])
@@ -83,7 +83,7 @@ impl<'tm> TmStruct<'tm> {
         let e: Vec<ExecError>  = cmd.target_vec.into_iter().filter_map(|target| {
             match target {
                 Target::ALL => self.send_to_all_service(ins),
-                Target::Process(p_name, _) => self.send_to_process(&p_name, ins),
+                Target::Process(p_name, thread_id) => self.send_to_process(&p_name, thread_id, ins),
                 Target::Service(s_name) => self.send_to_service(&s_name, ins),
                 Target::ServiceProcess((s_name, p_name, thread_id)) => self.send_to_service_process(&s_name, &p_name, thread_id, ins),
             }.err()
