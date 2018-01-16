@@ -84,8 +84,23 @@ impl Process {
         self
     }
 
+  	#[cfg(not(target_os = "linux"))]
     fn add_umask(&mut self) -> &mut Process {
         let conf_umask = self.config.umask;
+
+        let call_umask = move || -> Result<(), Error> {
+            let mode = Mode::from_bits(conf_umask).unwrap();
+            umask(mode);
+            Ok(())
+        };
+
+        self.command.before_exec(call_umask);
+        self
+    }
+
+  	#[cfg(target_os = "linux")]
+    fn add_umask(&mut self) -> &mut Process {
+        let conf_umask = self.config.umask as u32;
 
         let call_umask = move || -> Result<(), Error> {
             let mode = Mode::from_bits(conf_umask).unwrap();

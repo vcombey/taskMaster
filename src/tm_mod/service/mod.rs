@@ -72,4 +72,7 @@ impl Service {
             self.thread_hash.insert(name.clone(), Thread::new(config, handle_vec, sender_vec));
         }
     }
+
+    fn reread(&mut self, reread_little_hash: HashMap<String, Config>) {
+    }
 }
