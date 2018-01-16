@@ -4,11 +4,15 @@ use std::process::Child;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 use std::os::unix::process::CommandExt;
-extern crate nix;
-use self::nix::sys::stat::umask;
-use self::nix::sys::stat::Mode;
-
+use std::os::unix::process::ExitStatusExt;
 use std::io::Error;
+use std::thread::sleep;
+use std::time::Duration;
+use nix::sys::stat::umask;
+use nix::sys::stat::Mode;
+use nix::sys::signal::kill;
+use nix::sys::signal::Signal;
+use nix::unistd::Pid;
 
 #[derive(Debug,PartialEq)]
 enum State {
@@ -31,6 +35,11 @@ pub struct Process {
 }
 
 impl Process {
+    /// Create a new Process with:
+    /// a Config, 
+    /// a Receiver from the main thread,
+    /// a Sender to the main thread.
+    /// And set child to None and state to State::UNLAUNCHED
     pub fn new(config: Config, receiver: Receiver<Instruction>, sender: Sender<String>) -> Process {
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
@@ -41,6 +50,7 @@ impl Process {
             state: State::UNLAUNCHED,
         }
     }
+
     fn add_workingdir(&mut self) -> &mut Process {
         if let Some(ref string) = self.config.workingdir {
             self.command.current_dir(string);
@@ -58,7 +68,7 @@ impl Process {
 
     fn add_stdout(&mut self) -> &mut Process {
         if let Some(ref string) = self.config.stdout {
-            match File::open(string) {
+            match File::create(string) {
                 Ok(file) => {self.command.stdout(file);},
                 Err(e) => eprintln!("{}", e),
             }
@@ -68,7 +78,7 @@ impl Process {
 
     fn add_stderr(&mut self) -> &mut Process {
         if let Some(ref string) = self.config.stderr {
-            match File::open(string) {
+            match File::create(string) {
                 Ok(file) => {self.command.stderr(file);},
                 Err(e) => eprintln!("{}", e),
             }
@@ -120,6 +130,7 @@ impl Process {
         self
     }
 
+    /// use the builder design pattern to spawn a process
     fn start(&mut self) -> &mut Process {
         self.add_args()
             .add_workingdir()
@@ -130,7 +141,7 @@ impl Process {
             .spawn()
     }
     fn try_wait(&mut self) -> State{ 
-        if let Some(ref mut child) = self.child {
+        if let Some(mut child) = self.child.take() {
             match child.try_wait() {
 
                 /* le program has ended */
@@ -142,15 +153,22 @@ impl Process {
                                       exit_status_code);
                         }
                         None => {
-                            eprintln!("INFO stopped: '{}' (terminated by SIGKILL) ", self.config.name);
+                            if let Some(exit_signal) = exit_status.signal() {
+                                eprintln!("INFO stopped: '{}' (terminated by {:?}) ",
+                                    self.config.name,
+                                    Signal::from_c_int(exit_signal).unwrap());
+                            }
                         }
                     }
                     return State::BACKOFF;
                 },
-                _ => { return State::RUNNING;}
+                _ => {
+                    self.child = Some(child);
+                    return State::RUNNING;
+                }
             }
         }
-        State::RUNNING
+        State::STOPPED
     }
     /// try launch the programe one time
     /// return after starttime if the program is still running
@@ -215,17 +233,44 @@ impl Process {
         }
         State::BACKOFF
     }
+
     fn stop(&mut self) {
         if let Some(ref mut child) = self.child {
-            match child.kill() {
+            match kill(Pid::from_raw(child.id() as i32), self.config.stopsignal) {
                 Ok(_) => {;}, 
                 Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
             }
         }
+        else {
+            eprintln!("{}: ERROR (not running)", self.config.name);
+            return ;
+        }
+        let now = Instant::now();
+        loop {
+            let nownow = Instant::now();
+            let duree = nownow.duration_since(now);
+            sleep(Duration::from_millis(10));
+
+            if self.try_wait() == State::BACKOFF {
+                self.child = None;
+                return ;
+            }
+            if duree > self.config.stoptime {
+                if let Some(ref mut child) = self.child {
+                    match child.kill() {
+                        Ok(_) => {;}, 
+                        Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
+                    }
+                }
+                return ;
+            }
+        }
     }
+
     fn status(&mut self) {
         self.sender.send(format!("{}: {:?}", self.config.name, self.state));
     }
+
     fn handle_cmd(&mut self, cmd: Instruction) {
         match cmd {
             Instruction::STOP => {
@@ -235,17 +280,22 @@ impl Process {
                 self.status();
             },
             Instruction::START => { ;
+                self.state = self.try_execute();
             },
             Instruction::RESTART => { ;
+                self.stop();
+                self.state = self.try_execute();
             },
             Instruction::RELOAD => { ;
             },
-            Instruction::SHUTDOWN => { ;
+            _ => { ;
             },
         }
     }
     pub fn manage_program(&mut self) {
         self.state = self.try_execute();
+
+        //eprintln!("config: {:#?}", self.config);
         loop {
             match self.receiver.try_recv() {
                 Ok(ins) => {
@@ -257,9 +307,7 @@ impl Process {
                 },
                 Err(_) => { ; },
             }
-            if self.try_wait() == State::BACKOFF{
-                self.child = None;
-            }
+            self.try_wait();
         }
     }
 }

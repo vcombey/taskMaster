@@ -6,6 +6,7 @@ extern crate serde_json;
 use std::env;
 use std::net::{TcpStream,TcpListener};
 use std::io::{Read, Write};
+use std::time::Duration;
 
 use task_master::tm_mod::TmStruct;
 use task_master::tm_mod::cmd::Cmd;
@@ -45,12 +46,23 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()>
     }
     //println!("Request: {:?}", cmd);
     
+<<<<<<< HEAD
     let response = tm.try_receive_from_threads()
         .unwrap_or(String::from("Problem receiving from threads"));
     let response_err = match tm.exec_cmd(cmd) {
+||||||| merged common ancestors
+    let response = tm.try_receive_from_threads()
+        .unwrap_or(String::from("pb receiving from threads"));
+    let response_err = match tm.exec_cmd(cmd) {
+=======
+    let mut nb_receive = 0;
+    let response_err = match tm.exec_cmd(cmd, &mut nb_receive) {
+>>>>>>> master
         Err(e) => format!("{}", e),
         Ok(_) => format!(""),
     };
+    let response = tm.try_receive_from_threads(nb_receive, Duration::from_secs(2))
+        .unwrap_or(String::from("pb receiving from threads"));
     let response = format!("{}{}", response, response_err);
     stream.write(response.as_bytes()).unwrap();
     Ok(())

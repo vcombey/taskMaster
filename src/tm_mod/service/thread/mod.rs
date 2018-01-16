@@ -21,12 +21,18 @@ impl Thread {
             sender,
         }
     }
-    pub fn send(&self, ins: Instruction) -> Result<(), ExecErrors> {
-        let e: Vec<ExecError> = self.sender.iter().enumerate().filter_map(|(i, s)| {
-            s.send(ins).map_err(|_| ExecError::Sending((self.config.name.clone(), i))).err()
-        })
-        .collect();
+    pub fn send(&self, thread_id: Option<usize>, ins: Instruction, nb_receive: &mut usize) -> Result<(), ExecErrors> {
+        let e: Vec<ExecError> = match thread_id {
+            Some(id) => match self.sender.get(id) {
+                None => vec![ExecError::ThreadOutofRange((self.config.name.clone(), id))],
+                Some(s) => s.send(ins).map_err(|_| ExecError::Sending((self.config.name.clone(), id))).and_then(|_| {*nb_receive+=1; Ok(())}).err().into_iter().collect(),
+            },
+            None => self.sender.iter().enumerate().filter_map(|(i, s)| {
+                s.send(ins).map_err(|_| ExecError::Sending((self.config.name.clone(), i))).and_then(|_| {*nb_receive+=1; Ok(())}).err()
+            }).collect(),
+        };
 
+        //*nb_receive += self.sender.len() - e.len();
         ExecErrors::result_from_e_vec(e)
     }
 }
@@ -35,7 +41,8 @@ impl Drop for Thread {
     fn drop(&mut self) {
         println!("Sending terminate message to all workers.");
 
-        self.send(Instruction::SHUTDOWN);
+        let mut nb_receive = 0;
+        self.send(None, Instruction::SHUTDOWN, &mut nb_receive);
 
         println!("Shutting down all workers.");
 
