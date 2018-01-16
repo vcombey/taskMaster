@@ -35,6 +35,11 @@ pub struct Process {
 }
 
 impl Process {
+    /// Create a new Process with:
+    /// a Config, 
+    /// a Receiver from the main thread,
+    /// a Sender to the main thread.
+    /// And set child to None and state to State::UNLAUNCHED
     pub fn new(config: Config, receiver: Receiver<Instruction>, sender: Sender<String>) -> Process {
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
@@ -45,6 +50,7 @@ impl Process {
             state: State::UNLAUNCHED,
         }
     }
+
     fn add_workingdir(&mut self) -> &mut Process {
         if let Some(ref string) = self.config.workingdir {
             self.command.current_dir(string);
@@ -62,7 +68,7 @@ impl Process {
 
     fn add_stdout(&mut self) -> &mut Process {
         if let Some(ref string) = self.config.stdout {
-            match File::open(string) {
+            match File::create(string) {
                 Ok(file) => {self.command.stdout(file);},
                 Err(e) => eprintln!("{}", e),
             }
@@ -72,7 +78,7 @@ impl Process {
 
     fn add_stderr(&mut self) -> &mut Process {
         if let Some(ref string) = self.config.stderr {
-            match File::open(string) {
+            match File::create(string) {
                 Ok(file) => {self.command.stderr(file);},
                 Err(e) => eprintln!("{}", e),
             }
@@ -109,6 +115,7 @@ impl Process {
         self
     }
 
+    /// use the builder design pattern to spawn a process
     fn start(&mut self) -> &mut Process {
         self.add_args()
             .add_workingdir()
@@ -119,7 +126,7 @@ impl Process {
             .spawn()
     }
     fn try_wait(&mut self) -> State{ 
-        if let Some(ref mut child) = self.child {
+        if let Some(mut child) = self.child.take() {
             match child.try_wait() {
 
                 /* le program has ended */
@@ -140,10 +147,13 @@ impl Process {
                     }
                     return State::BACKOFF;
                 },
-                _ => { return State::RUNNING;}
+                _ => {
+                    self.child = Some(child);
+                    return State::RUNNING;
+                }
             }
         }
-        State::RUNNING
+        State::STOPPED
     }
     /// try launch the programe one time
     /// return after starttime if the program is still running
@@ -216,6 +226,10 @@ impl Process {
                 Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
             }
         }
+        else {
+            eprintln!("{}: ERROR (not running)", self.config.name);
+            return ;
+        }
         let now = Instant::now();
         loop {
             let nownow = Instant::now();
@@ -233,6 +247,7 @@ impl Process {
                         Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
                     }
                 }
+                return ;
             }
         }
     }
@@ -250,12 +265,15 @@ impl Process {
                 self.status();
             },
             Instruction::START => { ;
+                self.state = self.try_execute();
             },
             Instruction::RESTART => { ;
+                self.stop();
+                self.state = self.try_execute();
             },
             Instruction::RELOAD => { ;
             },
-            Instruction::SHUTDOWN => { ;
+            _ => { ;
             },
         }
     }
@@ -274,9 +292,7 @@ impl Process {
                 },
                 Err(_) => { ; },
             }
-            if self.try_wait() == State::BACKOFF{
-                self.child = None;
-            }
+            self.try_wait();
         }
     }
 }
