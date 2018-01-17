@@ -57,18 +57,22 @@ impl Service {
         });
         (handle, sender)
     }
+    
+    fn launch_num_procs_threads(config: &Config, sender_to_main: &mut mpsc::Sender<String>) -> Thread {
+        let mut handle_vec = Vec::with_capacity(config.numprocs);
+        let mut sender_vec = Vec::with_capacity(config.numprocs);
+        for _i in 0..config.numprocs {
+            let (handle, sender) = Service::launch_thread(config.clone(), sender_to_main.clone());
+            handle_vec.push(handle);
+            sender_vec.push(sender);
+        }
+        Thread::new(config.clone(), handle_vec, sender_vec)
+    }
 
     pub fn launch_from_hash(&mut self, process_hash: HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
         for (name, config) in process_hash.into_iter() {
-            println!("name: {}", name);
-            let mut handle_vec = Vec::with_capacity(config.numprocs);
-            let mut sender_vec = Vec::with_capacity(config.numprocs);
-            for _i in 0..config.numprocs {
-                let (handle, sender) = Service::launch_thread(config.clone(), sender_to_main.clone());
-                handle_vec.push(handle);
-                sender_vec.push(sender);
-            }
-            self.thread_hash.insert(name.clone(), Thread::new(config, handle_vec, sender_vec));
+            //println!("name: {}", name);
+            self.thread_hash.insert(name.clone(), Service::launch_num_procs_threads(&config, sender_to_main));
         }
     }
 
@@ -81,8 +85,12 @@ impl Service {
         self.thread_hash.retain( |thread_name, thread| { // If ret is false elem is removed from HashMap
             match reread_process_hash.get(thread_name) {
                 None => { thread.send(None, Instruction::SHUTDOWN, None, &mut 0);
-                          false },
-                Some(_) => true,
+                    false
+                },
+                Some(new_config) => match thread.config.fatal_cmp(&new_config) {
+                        true => {thread.send(None, Instruction::SHUTDOWN, None, &mut 0) ; false},
+                        false => true,
+                },
             }
         });
 
@@ -90,15 +98,19 @@ impl Service {
         reread_process_hash.retain( |new_thread_name, config| { // If ret is false elem is removed from HashMap
             match self.thread_hash.get(new_thread_name) {
                 None => {
-                    let mut handle_vec = Vec::with_capacity(config.numprocs);
-                    let mut sender_vec = Vec::with_capacity(config.numprocs);
-                    for _i in 0..config.numprocs {
-                        let (handle, sender) = Service::launch_thread(config.clone(), sender_to_main.clone());
-                        handle_vec.push(handle);
-                        sender_vec.push(sender);
-                    }
-                    self.thread_hash.insert(new_thread_name.clone(), Thread::new(config.clone(), handle_vec, sender_vec));
-                    false },
+                    /*
+                       let mut handle_vec = Vec::with_capacity(config.numprocs);
+                       let mut sender_vec = Vec::with_capacity(config.numprocs);
+                       for _i in 0..config.numprocs {
+                       let (handle, sender) = Service::launch_thread(config.clone(), sender_to_main.clone());
+                       handle_vec.push(handle);
+                       sender_vec.push(sender);
+                       }
+                       self.thread_hash.insert(new_thread_name.clone(), Thread::new(config.clone(), handle_vec, sender_vec));
+                       */
+                    self.thread_hash.insert(new_thread_name.clone(), Service::launch_num_procs_threads(&config, sender_to_main));
+                    false
+                },
                 Some(_) => true,
             }
         });
@@ -110,48 +122,36 @@ impl Service {
         // configs are indentical). If numprocs differ, appropriate
         // number of process must be killed / added.
         for (process_name, new_config) in reread_process_hash { // SWITCH TO FOR let mut happened = false;
-            let mut happened = false;
-            let mut handle_vec = Vec::with_capacity(new_config.numprocs);
-            let mut sender_vec = Vec::with_capacity(new_config.numprocs);
-            self.thread_hash.get(process_name).unwrap().apply( |thread| {
-                match thread.config.fatal_cmp(&new_config) {
-                    true => { // KILL THEN LAUNCH NEW
-                        // Kill
-                        thread.send(None, Instruction::SHUTDOWN, None, &mut 0);
+            let mut thread = self.thread_hash.get_mut(process_name).unwrap();
+            match thread.config.fatal_cmp(&new_config) {
+                true => {;},
 
-                        // Launch new
-                        happened = true;
-                        for _ in 0..new_config.numprocs {
+                false => { // Update configs. create numproc procs
+                    thread.send(None, Instruction::REREAD, Some(new_config.clone()), &mut 0);
+                    thread.config = new_config.clone();
+
+                    // Two following conditions create/kill
+                    // process depending on the diff between new
+                    // numproc and old one.
+                    if new_config.numprocs > thread.config.numprocs {
+                        for _ in new_config.numprocs..thread.config.numprocs {
                             let (handle, sender) = Service::launch_thread(new_config.clone(), sender_to_main.clone());
-                            handle_vec.push(handle);
-                            sender_vec.push(sender);
-                        }
-                    },
-                    false => { // Update configs. create numproc procs
-                        thread.send(None, Instruction::REREAD, Some(new_config.clone()), &mut 0);
-
-                        // Two following conditions create/kill
-                        // process depending on the diff between new
-                        // numproc and old one.
-                        if new_config.numprocs > thread.config.numprocs {
-                            happened = true;
-                            for _ in new_config.numprocs..thread.config.numprocs {
-                                let (handle, sender) = Service::launch_thread(new_config.clone(), sender_to_main.clone());
-                                handle_vec.push(handle);
-                                sender_vec.push(sender);
-                            };
-                        } else if thread.config.numprocs > new_config.numprocs {
-                            for i in thread.config.numprocs..new_config.numprocs {
-                                thread.send(Some(i), Instruction::SHUTDOWN, None, &mut 0);
+                            if let Some(ref mut j) = thread.join_handle {
+                               j.push(handle);
                             }
+                            thread.sender.push(sender);
                         };
-                    }
+                    } else if thread.config.numprocs > new_config.numprocs {
+                        for i in thread.config.numprocs..new_config.numprocs {
+                            thread.send(Some(i), Instruction::SHUTDOWN, None, &mut 0);
+                            if let Some(ref mut j) = thread.join_handle {
+                               j.remove(i);
+                            }
+                            thread.sender.remove(i);
+                        }
+                    };
                 }
-            });
-            if happened == true {
-                self.thread_hash.insert(process_name.clone(), Thread::new(new_config.clone(), handle_vec, sender_vec));
             }
         }
-            
     }
 }

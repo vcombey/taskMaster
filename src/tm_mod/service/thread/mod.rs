@@ -9,8 +9,8 @@ use tm_mod::exec_error::ExecError;
 #[derive(Debug)]
 pub struct Thread {
     pub config: Config,
-    sender: Vec<Sender<(Instruction, Option<Config>)>>,
-    join_handle: Option<Vec<JoinHandle<()>>>,
+    pub sender: Vec<Sender<(Instruction, Option<Config>)>>,
+    pub join_handle: Option<Vec<JoinHandle<()>>>,
 }
 
 impl Thread {
@@ -37,7 +37,7 @@ impl Thread {
         ExecErrors::result_from_e_vec(e)
     }
 
-    pub fn apply<F>(&self, fct: F)
+    pub fn apply<F>(&mut self, fct: F)
         where F: FnOnce(&Thread)
     {
         fct(self);
