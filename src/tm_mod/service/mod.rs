@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::sync::mpsc;
-use std::thread as std_thread;
 
 // Loading submodule
 pub mod thread;
@@ -9,6 +8,7 @@ pub mod thread;
 use super::config::Config;
 use self::thread::process::Process;
 use self::thread::Thread_vec;
+use self::thread::Thread;
 use tm_mod::cmd::Instruction;
 use tm_mod::exec_error::ExecErrors;
 use tm_mod::exec_error::ExecError;
@@ -49,30 +49,10 @@ impl Service {
         ExecErrors::result_from_e_vec(e)
     }
 
-    fn launch_thread(config: Config, sender_to_main: mpsc::Sender<String>) -> (std_thread::JoinHandle<()>, mpsc::Sender<(Instruction, Option<Config>)>) {
-        let (sender, receiver) = mpsc::channel();
-        let handle = std_thread::spawn(move || {
-            let mut process = Process::new(config, receiver, sender_to_main);
-            process.manage_program();
-        });
-        (handle, sender)
-    }
-    
-    fn launch_num_procs_threads(config: &Config, sender_to_main: &mut mpsc::Sender<String>) -> Thread_vec {
-        let mut handle_vec = Vec::with_capacity(config.numprocs);
-        let mut sender_vec = Vec::with_capacity(config.numprocs);
-        for _i in 0..config.numprocs {
-            let (handle, sender) = Service::launch_thread(config.clone(), sender_to_main.clone());
-            handle_vec.push(handle);
-            sender_vec.push(sender);
-        }
-        Thread_vec::new(config.clone(), handle_vec, sender_vec)
-    }
-
     pub fn launch_from_hash(&mut self, process_hash: HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
         for (name, config) in process_hash.into_iter() {
             //println!("name: {}", name);
-            self.thread_hash.insert(name.clone(), Service::launch_num_procs_threads(&config, sender_to_main));
+            self.thread_hash.insert(name.clone(), Thread_vec::new(&config, sender_to_main));
         }
     }
 
@@ -108,7 +88,7 @@ impl Service {
                        }
                        self.thread_hash.insert(new_thread_name.clone(), Thread_vec::new(config.clone(), handle_vec, sender_vec));
                        */
-                    self.thread_hash.insert(new_thread_name.clone(), Service::launch_num_procs_threads(&config, sender_to_main));
+                    self.thread_hash.insert(new_thread_name.clone(), Thread_vec::new(&config, sender_to_main));
                     false
                 },
                 Some(_) => true,
@@ -136,24 +116,15 @@ impl Service {
                     if new_config.numprocs > thread.config.numprocs {
                         thread.send(None, Instruction::REREAD, Some(new_config.clone()), &mut 0);
                         for i in thread.config.numprocs..new_config.numprocs {
-                            let (handle, sender) = Service::launch_thread(new_config.clone(), sender_to_main.clone());
-                            if let Some(ref mut j) = thread.join_handle {
-                                j.push(handle);
-                            }
+                            let t = Thread::new(new_config.clone(), sender_to_main.clone());
                             println!("new > old i: {}", i);
-                            thread.sender.push(sender);
+                            thread.vec.push(t);
                         };
                     }
                     else if new_config.numprocs < thread.config.numprocs {
                         for i in new_config.numprocs..thread.config.numprocs {
-                            //    thread.send(Some(i), Instruction::SHUTDOWN, None, &mut 0);
-                            if let Some(ref mut j) = thread.join_handle {
-                                println!("before");
-                                j.pop();
-                                println!("after");
-                            }
+                            thread.vec.pop();
                             println!("new < old i: {}", i);
-                            thread.sender.pop();
                         }
                         thread.send(None, Instruction::REREAD, Some(new_config.clone()), &mut 0);
                     };

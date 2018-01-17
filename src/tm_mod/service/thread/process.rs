@@ -335,6 +335,8 @@ impl Process {
                 },
                 Err(_) => { ; },
             }
+            println!("meuuuuh");
+            sleep(Duration::from_secs(1));
             self.try_wait();
         }
     }
