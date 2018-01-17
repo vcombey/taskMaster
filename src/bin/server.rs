@@ -44,6 +44,16 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()>
     if cmd.instruction == Instruction::SHUTDOWN {
         return Err(());
     }
+
+    //Testing REREAD
+    /////////////////////////////////////////
+    if cmd.instruction == Instruction::REREAD {
+//        println!("{:#?}", tm);
+        tm.reread();
+ //       println!("{:#?}", tm);
+    }
+    /////////////////////////////////////////
+
     //println!("Request: {:?}", cmd);
     
     let mut nb_receive = 0;

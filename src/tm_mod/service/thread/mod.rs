@@ -5,52 +5,84 @@ use std::thread::JoinHandle;
 use super::super::cmd::Instruction;
 use tm_mod::exec_error::ExecErrors;
 use tm_mod::exec_error::ExecError;
+use std::sync::mpsc;
+use std::thread as std_thread;
+
+use self::process::Process;
 
 #[derive(Debug)]
 pub struct Thread {
-    config: Config,
-    sender: Vec<Sender<(Instruction, Option<Config>)>>,
-    join_handle: Option<Vec<JoinHandle<()>>>,
+    join_handle: Option<JoinHandle<()>>,
+    pub sender: Sender<(Instruction, Option<Config>)>,
 }
 
 impl Thread {
-    pub fn new(config: Config, join_handle: Vec<JoinHandle<()>>, sender: Vec<Sender<(Instruction, Option<Config>)>>) -> Self {
+    pub fn new(config: Config, sender_to_main: mpsc::Sender<String>) -> Self {
+        let (sender, receiver) = mpsc::channel();
+        let join_handle = std_thread::spawn(move || {
+            let mut process = Process::new(config, receiver, sender_to_main);
+            process.manage_program();
+        });
         Thread {
-            config,
             join_handle: Some(join_handle),
             sender,
         }
     }
+}
+    
+impl Drop for Thread {
+    fn drop(&mut self) {
+        println!("Sending terminate message to one workers.");
+
+        self.sender.send((Instruction::SHUTDOWN, None));
+
+        if let Some(j_h) = self.join_handle.take() {
+            match j_h.join() {
+                Err(e) => eprintln!("{:?}", e),
+                _ =>{;},
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Thread_vec {
+    pub config: Config,
+    pub vec: Vec<Thread>,
+}
+
+impl Thread_vec {
+
+    pub fn new(config: &Config, sender_to_main: &mut mpsc::Sender<String>) -> Self {
+        let mut vec = Vec::with_capacity(config.numprocs);
+        for _i in 0..config.numprocs {
+            let thread = Thread::new(config.clone(), sender_to_main.clone());
+            vec.push(thread);
+        }
+        Thread_vec {
+            config: config.clone(),
+            vec,
+        }
+    }
+
     pub fn send(&self, thread_id: Option<usize>, ins: Instruction, conf: Option<Config>, nb_receive: &mut usize) -> Result<(), ExecErrors> {
         let e: Vec<ExecError> = match thread_id {
-            Some(id) => match self.sender.get(id) {
+            Some(id) => match self.vec.get(id) {
                 None => vec![ExecError::ThreadOutofRange((self.config.name.clone(), id))],
-                Some(s) => s.send((ins, conf.clone())).map_err(|_| ExecError::Sending((self.config.name.clone(), id))).and_then(|_| {*nb_receive+=1; Ok(())}).err().into_iter().collect(),
+                Some(t) => t.sender.send((ins, conf.clone())).map_err(|_| ExecError::Sending((self.config.name.clone(), id))).and_then(|_| {*nb_receive+=1; Ok(())}).err().into_iter().collect(),
             },
-            None => self.sender.iter().enumerate().filter_map(|(i, s)| {
-                s.send((ins, conf.clone())).map_err(|_| ExecError::Sending((self.config.name.clone(), i))).and_then(|_| {*nb_receive+=1; Ok(())}).err()
+            None => self.vec.iter().enumerate().filter_map(|(i, t)| {
+                t.sender.send((ins, conf.clone())).map_err(|_| ExecError::Sending((self.config.name.clone(), i))).and_then(|_| {*nb_receive+=1; Ok(())}).err()
             }).collect(),
         };
 
         //*nb_receive += self.sender.len() - e.len();
         ExecErrors::result_from_e_vec(e)
     }
-}
 
-impl Drop for Thread {
-    fn drop(&mut self) {
-        println!("Sending terminate message to all workers.");
-
-        let mut nb_receive = 0;
-        self.send(None, Instruction::SHUTDOWN, None, &mut nb_receive);
-
-        println!("Shutting down all workers.");
-
-        if let Some(join_handle) = self.join_handle.take() {
-            for (i, j_h) in join_handle.into_iter().enumerate() {
-                println!("Shutting down worker {}", i);
-                j_h.join().unwrap();
-            }
+    pub fn apply<F>(&mut self, fct: F)
+        where F: FnOnce(&Thread_vec)
+        {
+            fct(self);
         }
-    }
 }

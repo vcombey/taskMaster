@@ -89,7 +89,7 @@ impl<'tm> TmStruct<'tm> {
                 Target::ServiceProcess((s_name, p_name, thread_id)) => self.send_to_service_process(&s_name, &p_name, thread_id, ins, nb_receive),
             }.err()
         }).flat_map(|e| e.e_vect.into_iter())
-        .collect();
+            .collect();
 
         eprintln!("nb receive: {}", nb_receive);
         ExecErrors::result_from_e_vec(e)//.map_err(|e| println!("error is: {}",e));
@@ -149,7 +149,7 @@ impl<'tm> TmStruct<'tm> {
                 }
                 // Insert into little map
                 process_map.insert(String::from(process_name),
-                Config::from_yaml(process_name, argv, process_config));
+                                   Config::from_yaml(process_name, argv, process_config));
                 taken_process_names.push(process_name);
             }
             // Check if a service / process with the same name already exists
@@ -171,15 +171,55 @@ impl<'tm> TmStruct<'tm> {
         }
         Ok(response)
     }
-}
 
+    /// Function used to reload the config file. Creates / deletes
+    /// services. Only changes that affect runtime behavior trigger
+    /// despawn-respawn of the process. If a process / service no
+    /// longer exists in the config file, it is despawned. Each data
+    /// structure has the reponsibility to handle the clean removal of
+    /// the data structure it contains.
+    pub fn reread(&mut self) {
+        // Loading the new HashMap of configs
+        let mut reread_service_hash = self.hash_config();
+
+        // Stop services corresponding to keys contained in the current service hash but not in the new one and removed them from service_hash
+        self.service_hash.retain( |service_name, service| { // Every element for which this function returns false is removed from the HashMap
+            match reread_service_hash.get(service_name) {
+                None => { service.send_to_all_process(Instruction::SHUTDOWN, &mut 0);
+                          false},
+                Some(_) => true,
+            }
+        });
+
+        // Spawn services corresponding to keys contained in the new services hashmap and remove them from the HashMap
+        reread_service_hash.retain( |new_service_name, new_process_hash| { // Every element for which this function returns false is removed from the HashMap 
+            match self.service_hash.get(new_service_name) {
+                None => { let mut s = Service::new(new_service_name.clone());
+                          s.launch_from_hash(new_process_hash.clone(), &mut self.sender_to_main);
+                          self.service_hash.insert(s.name.clone(), s);
+                          false },
+                Some(_) => true,
+            }
+        });
+
+        // Treat services staying in both
+        for (service_name, mut new_process_hash) in reread_service_hash {
+            self.service_hash
+                .get_mut(&service_name)
+                .unwrap()
+                .reread(&mut new_process_hash, &mut self.sender_to_main);
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
-#[test]
+
+    #[test]
     fn test_bad_file() {
     }
-#[test]
+
+    #[test]
     fn test_bad_yaml() {
     }
 }

@@ -97,8 +97,23 @@ impl Process {
         self
     }
 
+    #[cfg(not(target_os = "linux"))]
     fn add_umask(&mut self) -> &mut Process {
         let conf_umask = self.config.umask;
+
+        let call_umask = move || -> Result<(), Error> {
+            let mode = Mode::from_bits(conf_umask).unwrap();
+            umask(mode);
+            Ok(())
+        };
+
+        self.command.before_exec(call_umask);
+        self
+    }
+
+    #[cfg(target_os = "linux")]
+    fn add_umask(&mut self) -> &mut Process {
+        let conf_umask = self.config.umask as u32;
 
         let call_umask = move || -> Result<(), Error> {
             let mode = Mode::from_bits(conf_umask).unwrap();
@@ -146,8 +161,8 @@ impl Process {
                         None => {
                             if let Some(exit_signal) = exit_status.signal() {
                                 eprintln!("INFO stopped: '{}' (terminated by {:?}) ",
-                                    self.config.name,
-                                    Signal::from_c_int(exit_signal).unwrap());
+                                          self.config.name,
+                                          Signal::from_c_int(exit_signal).unwrap());
                                 self.state = State::STOPPED;
                             }
                         }
@@ -275,7 +290,7 @@ impl Process {
         format!("{}: {:?}", self.config.name, self.state)
     }
 
-    fn handle_cmd(&mut self, cmd: Instruction) {
+    fn handle_cmd(&mut self, cmd: Instruction, config: Option<Config>) {
         let message = match cmd {
             Instruction::STOP => {
                 self.stop()
@@ -289,8 +304,12 @@ impl Process {
             Instruction::RESTART => { ;
                 format!("{}\n{}",self.stop(), self.try_execute())
             },
-            Instruction::REREAD => { ;
-                format!("not implemented yet")
+            Instruction::REREAD => {
+                match config {
+                    Some(config) => {self.config = config;
+                    format!("Process locally updating")},
+                None => format!("No config sent"),
+            }
             },
             _ => { 
                 format!("unrecognised instruction")
@@ -312,10 +331,12 @@ impl Process {
                     if ins == Instruction::SHUTDOWN {
                         break ;
                     }
-                    self.handle_cmd(ins);
+                    self.handle_cmd(ins, conf);
                 },
                 Err(_) => { ; },
             }
+/*            println!("meuuuuh");
+            sleep(Duration::from_secs(1));*/
             self.try_wait();
         }
     }

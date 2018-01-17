@@ -16,25 +16,25 @@ pub enum Autorestart {
 }
 
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Config {
     /// The Config struct represents all the informations we want
     /// to have about a single process we are supervising.
-    pub name: String,
-    pub argv: String,
-    pub workingdir: Option<String>,
-    pub autostart: bool,
-    pub env: Option<Vec<(String, String)>>,
-    pub stdout: Option<String>,
-    pub stderr: Option<String>,
-    pub exitcodes: Vec<i64>,
-    pub startretries: u64,
-    pub umask: u16,
-    pub autorestart: Autorestart,
-    pub starttime: Duration,
-    pub stopsignal: Signal,
-    pub stoptime: Duration,
-    pub numprocs: usize,
+    pub name: String, // fatal
+    pub argv: String, // fatal
+    pub workingdir: Option<String>, // fatal
+    pub autostart: bool, // non-fatal
+    pub env: Option<Vec<(String, String)>>, // fatal
+    pub stdout: Option<String>, // fatal
+    pub stderr: Option<String>, // fatal
+    pub exitcodes: Vec<i64>, // non-fatal
+    pub startretries: u64, // non-fatal
+    pub umask: u16, // fatal
+    pub autorestart: Autorestart, // non-fatal
+    pub starttime: Duration, // non-fatal
+    pub stopsignal: Signal, // non-fatal
+    pub stoptime: Duration, // non-fatal
+    pub numprocs: usize, // non-fatal
 }
 
 
@@ -111,6 +111,20 @@ impl Config {
                 None => 1,
             },
         }
+    }
+
+	/// Returns true if the 2 config have fatal differences (one that necessites restarting to apply)
+	pub fn fatal_cmp(&self, other: &Config) -> bool {
+        if self.name != other.name ||
+            self.argv != other.argv ||
+            self.workingdir != other.workingdir ||
+            self.env != other.env ||
+            self.stdout != other.stdout ||
+            self.stderr != other.stderr ||
+            self.umask != other.umask {
+                return true;
+            }
+        false
     }
 
     fn parse_signal(sig_name: &str) -> Option<Signal> {

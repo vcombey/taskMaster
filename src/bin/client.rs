@@ -55,12 +55,8 @@ fn emit<T>(stream: &mut TcpStream, t: T) -> Result<(), String>
 fn main() {
     let mut con = Context::new();
     loop {
-        let res = match con.read_line("task_master> ", &mut |_| {}) {
-            Ok(res) => res,
-            Err(_) => { return; },
-        };
-        let cmd = parse_into_cmd(&res);
-        if cmd.is_some() {
+        let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
+        if let Some(cmd) = parse_into_cmd(&res) {
             let mut buffer = String::new();
             //println!("cmd : {:#?}", cmd);
             match TcpStream::connect("127.0.0.1:8080") {
@@ -127,6 +123,13 @@ pub mod test_parse_into_cmd{
         Cmd::new(Instruction::START,
                  vec![Target::Process("process_one".to_string(), None), Target::ServiceProcess(("service_one".to_string(), "process_two".to_string(), None))],
                  ));
+    }
+
+    #[test]
+    fn test_cmd_no_target() {
+        assert_eq!(parse_into_cmd("start").unwrap(),
+        Cmd::new(Instruction::START,
+                 vec![Target::ALL],));
     }
 }
 
