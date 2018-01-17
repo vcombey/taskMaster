@@ -1,0 +1,4 @@
+  service:
+    process:
+      cmd: "ls -l"
+      startretries: 1

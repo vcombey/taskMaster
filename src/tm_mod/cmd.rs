@@ -49,7 +49,7 @@ impl Cmd {
             &value => return Err(ParseError::InvalidCommand(value.to_string())),
         };
         let mut target_vec: Vec<Target> = Vec::new();
-        if instruction != Instruction::SHUTDOWN {
+        if instruction != Instruction::SHUTDOWN && instruction != Instruction::REREAD {
             if let Some(target_slice) = word_list.get(1..) {
                 for target in target_slice.iter() {
                     let ret = Target::from_str(*target)?;
