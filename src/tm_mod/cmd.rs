@@ -1,4 +1,3 @@
-use super::super::cli;
 
 #[derive(Serialize, PartialEq, Deserialize, Copy, Clone, Debug)]
 pub enum Instruction {
@@ -59,7 +58,7 @@ impl Cmd {
                     target_vec.push(ret);
                 }
             } else {
-                return Err(ParseError::MissingTarget);
+                target_vec.push(Target::ALL);
             }
         }
         Ok(Cmd {instruction, target_vec,})

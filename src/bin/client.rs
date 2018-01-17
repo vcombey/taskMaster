@@ -42,13 +42,13 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
 }
 
 
-fn emit<T>(stream: &mut TcpStream, t: T)
+fn emit<T>(stream: &mut TcpStream, t: T) -> Result<(), String>
     where T: serde::Serialize + serde::export::fmt::Debug
 {
     println!("cmd : {:?}", t);
-    let serialized : String = serde_json::to_string(&t).unwrap();
-    stream.write(&serialized.as_bytes()).unwrap();
-    //stream.flush().unwrap();
+    let serialized : String = serde_json::to_string(&t).map_err(|e| format!("{}", e))?;
+    stream.write(&serialized.as_bytes()).map_err(|e| format!("{}", e))?;
+    Ok(())
 }
 
 
@@ -65,14 +65,24 @@ fn main() {
             //println!("cmd : {:#?}", cmd);
             match TcpStream::connect("127.0.0.1:8080") {
                 Ok(mut stream) => {
-                    emit(&mut stream, cmd);
-                    let _ = stream.read_to_string(&mut buffer);
-                    println!("{}", buffer);
+                    match emit(&mut stream, cmd) {
+                        Ok(_) => {
+                            if let Err(e) = stream.read_to_string(&mut buffer) {
+                                println!("{}", e.description());
+                            }
+                            println!("{}", buffer);
+                        },
+                        Err(e) => eprintln!("{}", e),
+                    }
                 },
                 Err(e) => eprintln!("{}", e.description()),
             }
         }
-        con.history.push(res.into()).unwrap();
+        if !res.as_str().split_whitespace().next().is_none() {
+            if let Err(e) = con.history.push(res.into()) {
+                println!("{}", e.description());
+            }
+        }
     }
 }
 
