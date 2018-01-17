@@ -32,7 +32,7 @@ pub struct Cmd {
 
 impl Cmd {
     /// Creates an instance of the cmd struct with already complete values.
-    pub fn new(instruction: Instruction, target_vec: Vec<Target>) -> Cmd {
+    pub fn new(instruction: Instruction, target_vec: Vec<Target>) -> Self {
         Cmd {
             instruction,
             target_vec,

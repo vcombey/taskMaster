@@ -57,7 +57,7 @@ impl Config {
                stopsignal: Signal,
                stoptime: Option<i64>,
                numprocs: Option<i64>
-              ) -> Config {
+              ) -> Self {
         Config {
             name:  String::from(name),
             argv:  String::from(argv),

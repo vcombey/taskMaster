@@ -35,7 +35,7 @@ pub struct TmStruct<'tm> {
 }
 
 impl<'tm> TmStruct<'tm> {
-    pub fn new(config_file: &'tm str) -> TmStruct<'tm> {
+    pub fn new(config_file: &'tm str) -> Self {
         let (sender_to_main, receiver_from_threads) = mpsc::channel();
         TmStruct {
             config_file,

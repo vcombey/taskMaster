@@ -22,7 +22,7 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(name: String) -> Service {
+    pub fn new(name: String) -> Self {
         Service {
             name,
             thread_hash: HashMap::new(),

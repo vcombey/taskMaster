@@ -43,7 +43,7 @@ impl Process {
     /// a Receiver from the main thread,
     /// a Sender to the main thread.
     /// And set child to None and state to State::UNLAUNCHED
-    pub fn new(config: Config, receiver: Receiver<(Instruction, Option<Config>)>, sender: Sender<String>) -> Process {
+    pub fn new(config: Config, receiver: Receiver<(Instruction, Option<Config>)>, sender: Sender<String>) -> Self {
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
             config,

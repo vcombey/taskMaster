@@ -14,7 +14,7 @@ pub struct Thread {
 }
 
 impl Thread {
-    pub fn new(config: Config, join_handle: Vec<JoinHandle<()>>, sender: Vec<Sender<(Instruction, Option<Config>)>>) -> Thread {
+    pub fn new(config: Config, join_handle: Vec<JoinHandle<()>>, sender: Vec<Sender<(Instruction, Option<Config>)>>) -> Self {
         Thread {
             config,
             join_handle: Some(join_handle),
