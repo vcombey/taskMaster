@@ -48,9 +48,9 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()>
     //Testing REREAD
     /////////////////////////////////////////
     if cmd.instruction == Instruction::REREAD {
-        println!("{:?}", tm);
+//        println!("{:#?}", tm);
         tm.reread();
-        println!("{:?}", tm);
+ //       println!("{:#?}", tm);
     }
     /////////////////////////////////////////
 

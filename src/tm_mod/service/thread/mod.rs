@@ -55,7 +55,10 @@ impl Drop for Thread {
         if let Some(join_handle) = self.join_handle.take() {
             for (i, j_h) in join_handle.into_iter().enumerate() {
                 println!("Shutting down worker {}", i);
-                j_h.join().unwrap();
+                match j_h.join() {
+                    Err(e) => eprintln!("{:?}", e),
+                    _ =>{;},
+                }
             }
         }
     }

@@ -84,11 +84,11 @@ impl Service {
         // Stop threads not found in the new hash but present in the old one
         self.thread_hash.retain( |thread_name, thread| { // If ret is false elem is removed from HashMap
             match reread_process_hash.get(thread_name) {
-                None => { thread.send(None, Instruction::SHUTDOWN, None, &mut 0);
+                None => { /*thread.send(None, Instruction::SHUTDOWN, None, &mut 0);*/
                     false
                 },
                 Some(new_config) => match thread.config.fatal_cmp(&new_config) {
-                        true => {thread.send(None, Instruction::SHUTDOWN, None, &mut 0) ; false},
+                        true => { /*thread.send(None, Instruction::SHUTDOWN, None, &mut 0) ;*/ false},
                         false => true,
                 },
             }
@@ -121,35 +121,41 @@ impl Service {
         // its process who will now host it too. (even if the 2
         // configs are indentical). If numprocs differ, appropriate
         // number of process must be killed / added.
-        for (process_name, new_config) in reread_process_hash { // SWITCH TO FOR let mut happened = false;
-            let mut thread = self.thread_hash.get_mut(process_name).unwrap();
+        for (process_name, new_config) in reread_process_hash {
+            let thread = self.thread_hash.get_mut(process_name).unwrap();
             match thread.config.fatal_cmp(&new_config) {
                 true => {;},
 
                 false => { // Update configs. create numproc procs
-                    thread.send(None, Instruction::REREAD, Some(new_config.clone()), &mut 0);
-                    thread.config = new_config.clone();
+                    println!("{:?}", thread);
 
                     // Two following conditions create/kill
                     // process depending on the diff between new
                     // numproc and old one.
+                    println!("new , old: {} {}", new_config.numprocs, thread.config.numprocs );
                     if new_config.numprocs > thread.config.numprocs {
-                        for _ in new_config.numprocs..thread.config.numprocs {
+                        thread.send(None, Instruction::REREAD, Some(new_config.clone()), &mut 0);
+                        for i in thread.config.numprocs..new_config.numprocs {
                             let (handle, sender) = Service::launch_thread(new_config.clone(), sender_to_main.clone());
                             if let Some(ref mut j) = thread.join_handle {
-                               j.push(handle);
+                                j.push(handle);
                             }
+                            println!("new > old i: {}", i);
                             thread.sender.push(sender);
                         };
-                    } else if thread.config.numprocs > new_config.numprocs {
-                        for i in thread.config.numprocs..new_config.numprocs {
-                            thread.send(Some(i), Instruction::SHUTDOWN, None, &mut 0);
+                    }
+                    else if new_config.numprocs < thread.config.numprocs {
+                        for i in new_config.numprocs..thread.config.numprocs {
+                            //    thread.send(Some(i), Instruction::SHUTDOWN, None, &mut 0);
                             if let Some(ref mut j) = thread.join_handle {
-                               j.remove(i);
+                                j.remove(i);
                             }
+                            println!("new < old i: {}", i);
                             thread.sender.remove(i);
                         }
+                        thread.send(None, Instruction::REREAD, Some(new_config.clone()), &mut 0);
                     };
+                    thread.config = new_config.clone();
                 }
             }
         }
