@@ -7,15 +7,15 @@ use tm_mod::exec_error::ExecErrors;
 use tm_mod::exec_error::ExecError;
 
 #[derive(Debug)]
-pub struct Thread {
+pub struct Thread_vec {
     pub config: Config,
     pub sender: Vec<Sender<(Instruction, Option<Config>)>>,
     pub join_handle: Option<Vec<JoinHandle<()>>>,
 }
 
-impl Thread {
-    pub fn new(config: Config, join_handle: Vec<JoinHandle<()>>, sender: Vec<Sender<(Instruction, Option<Config>)>>) -> Thread {
-        Thread {
+impl Thread_vec {
+    pub fn new(config: Config, join_handle: Vec<JoinHandle<()>>, sender: Vec<Sender<(Instruction, Option<Config>)>>) -> Thread_vec {
+        Thread_vec {
             config,
             join_handle: Some(join_handle),
             sender,
@@ -38,13 +38,13 @@ impl Thread {
     }
 
     pub fn apply<F>(&mut self, fct: F)
-        where F: FnOnce(&Thread)
+        where F: FnOnce(&Thread_vec)
     {
         fct(self);
     }
 }
 
-impl Drop for Thread {
+impl Drop for Thread_vec {
     fn drop(&mut self) {
         println!("Sending terminate message to all workers.");
 

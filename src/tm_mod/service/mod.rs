@@ -8,7 +8,7 @@ pub mod thread;
 // Loading
 use super::config::Config;
 use self::thread::process::Process;
-use self::thread::Thread;
+use self::thread::Thread_vec;
 use tm_mod::cmd::Instruction;
 use tm_mod::exec_error::ExecErrors;
 use tm_mod::exec_error::ExecError;
@@ -18,7 +18,7 @@ use tm_mod::exec_error::ExecError;
 #[derive(Debug)]
 pub struct Service {
     pub name: String,
-    pub thread_hash: HashMap<String, Thread>,
+    pub thread_hash: HashMap<String, Thread_vec>,
 }
 
 impl Service {
@@ -58,7 +58,7 @@ impl Service {
         (handle, sender)
     }
     
-    fn launch_num_procs_threads(config: &Config, sender_to_main: &mut mpsc::Sender<String>) -> Thread {
+    fn launch_num_procs_threads(config: &Config, sender_to_main: &mut mpsc::Sender<String>) -> Thread_vec {
         let mut handle_vec = Vec::with_capacity(config.numprocs);
         let mut sender_vec = Vec::with_capacity(config.numprocs);
         for _i in 0..config.numprocs {
@@ -66,7 +66,7 @@ impl Service {
             handle_vec.push(handle);
             sender_vec.push(sender);
         }
-        Thread::new(config.clone(), handle_vec, sender_vec)
+        Thread_vec::new(config.clone(), handle_vec, sender_vec)
     }
 
     pub fn launch_from_hash(&mut self, process_hash: HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
@@ -106,7 +106,7 @@ impl Service {
                        handle_vec.push(handle);
                        sender_vec.push(sender);
                        }
-                       self.thread_hash.insert(new_thread_name.clone(), Thread::new(config.clone(), handle_vec, sender_vec));
+                       self.thread_hash.insert(new_thread_name.clone(), Thread_vec::new(config.clone(), handle_vec, sender_vec));
                        */
                     self.thread_hash.insert(new_thread_name.clone(), Service::launch_num_procs_threads(&config, sender_to_main));
                     false
@@ -148,10 +148,12 @@ impl Service {
                         for i in new_config.numprocs..thread.config.numprocs {
                             //    thread.send(Some(i), Instruction::SHUTDOWN, None, &mut 0);
                             if let Some(ref mut j) = thread.join_handle {
-                                j.remove(i);
+                                println!("before");
+                                j.pop();
+                                println!("after");
                             }
                             println!("new < old i: {}", i);
-                            thread.sender.remove(i);
+                            thread.sender.pop();
                         }
                         thread.send(None, Instruction::REREAD, Some(new_config.clone()), &mut 0);
                     };
