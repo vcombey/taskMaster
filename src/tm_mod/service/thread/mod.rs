@@ -8,7 +8,7 @@ use tm_mod::exec_error::ExecError;
 
 #[derive(Debug)]
 pub struct Thread {
-    config: Config,
+    pub config: Config,
     sender: Vec<Sender<(Instruction, Option<Config>)>>,
     join_handle: Option<Vec<JoinHandle<()>>>,
 }
@@ -21,6 +21,7 @@ impl Thread {
             sender,
         }
     }
+
     pub fn send(&self, thread_id: Option<usize>, ins: Instruction, conf: Option<Config>, nb_receive: &mut usize) -> Result<(), ExecErrors> {
         let e: Vec<ExecError> = match thread_id {
             Some(id) => match self.sender.get(id) {
@@ -34,6 +35,12 @@ impl Thread {
 
         //*nb_receive += self.sender.len() - e.len();
         ExecErrors::result_from_e_vec(e)
+    }
+
+    pub fn apply<F>(&self, fct: F)
+        where F: FnOnce(&Thread)
+    {
+        fct(self);
     }
 }
 

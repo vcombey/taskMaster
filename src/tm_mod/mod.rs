@@ -203,18 +203,14 @@ impl<'tm> TmStruct<'tm> {
         });
 
         // Treat services staying in both
-        reread_service_hash.iter_mut().map(|(service_name, new_process_hash)| {
+        for (service_name, mut new_process_hash) in reread_service_hash {
             self.service_hash
-                .get_mut(service_name)
+                .get_mut(&service_name)
                 .unwrap()
-                .reread(new_process_hash, &mut self.sender_to_main);
-        });
+                .reread(&mut new_process_hash, &mut self.sender_to_main);
+        }
     }
 }
-
-// big_map.get(&service_name).map_or_else( || -> Option<Service> {
-// });
-
 
 #[cfg(test)]
 mod test {
