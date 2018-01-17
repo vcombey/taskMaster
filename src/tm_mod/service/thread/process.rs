@@ -14,12 +14,15 @@ use nix::sys::signal::kill;
 use nix::sys::signal::Signal;
 use nix::unistd::Pid;
 
+type Message = String;
 #[derive(Debug,PartialEq)]
 enum State {
     RUNNING,
     BACKOFF,
     STOPPED,
     UNLAUNCHED,
+    EXITED,
+    KILLED,
 }
 use tm_mod::config::Config;
 use tm_mod::cmd::Instruction;
@@ -29,7 +32,7 @@ pub struct Process {
     command: Command,
     config: Config,
     sender: Sender<String>,
-    receiver: Receiver<Instruction>,
+    receiver: Receiver<(Instruction, Option<Config>)>,
     child: Option<Child>,
     state: State,
 }
@@ -40,7 +43,7 @@ impl Process {
     /// a Receiver from the main thread,
     /// a Sender to the main thread.
     /// And set child to None and state to State::UNLAUNCHED
-    pub fn new(config: Config, receiver: Receiver<Instruction>, sender: Sender<String>) -> Process {
+    pub fn new(config: Config, receiver: Receiver<(Instruction, Option<Config>)>, sender: Sender<String>) -> Process {
         Process {
             command: Command::new(config.argv.split(" ").next().unwrap()),
             config,
@@ -60,7 +63,7 @@ impl Process {
 
     fn add_args(&mut self) -> &mut Process {
         if self.config.argv.len() > 1 {
-            let args: Vec<&str> = self.config.argv.split(" ").collect();
+            let args: Vec<&str> = self.config.argv.split_whitespace().collect();
             self.command.args(&args[1..]);
         }
         self
@@ -140,7 +143,9 @@ impl Process {
             .add_umask()
             .spawn()
     }
-    fn try_wait(&mut self) -> State{ 
+
+    /// call try wait on the child if any, update status, and write info if exited
+    fn try_wait(&mut self) { 
         if let Some(mut child) = self.child.take() {
             match child.try_wait() {
 
@@ -151,30 +156,31 @@ impl Process {
                             eprintln!("INFO exited: '{}' (exit status {}; expected)", 
                                       self.config.name, 
                                       exit_status_code);
+                            self.state = State::EXITED;
                         }
                         None => {
                             if let Some(exit_signal) = exit_status.signal() {
                                 eprintln!("INFO stopped: '{}' (terminated by {:?}) ",
                                     self.config.name,
                                     Signal::from_c_int(exit_signal).unwrap());
+                                self.state = State::STOPPED;
                             }
                         }
                     }
-                    return State::BACKOFF;
+                    //self.state = State::BACKOFF;
                 },
                 _ => {
                     self.child = Some(child);
-                    return State::RUNNING;
+                    self.state = State::RUNNING;
                 }
             }
         }
-        State::STOPPED
     }
+
     /// try launch the programe one time
     /// return after starttime if the program is still running
     /// or return if the program has exited before starttime
-    fn try_launch(&mut self) -> bool {
-        let mut success = false;
+    fn try_launch(&mut self) {
         self.start();
         if let Some(ref mut child) = self.child {
             let now = Instant::now();
@@ -184,7 +190,6 @@ impl Process {
                     /* le program has ended */
                     Ok(Some(exit_status)) => {
                         eprintln!("INFO spawned: '{}' with pid {:?}", self.config.name, child.id());
-                        //eprintln!("duree: {:?}", duree);
                         let exit_status_code = exit_status.code().unwrap();
                         let nownow = Instant::now();
                         let duree = nownow.duration_since(now);
@@ -197,11 +202,11 @@ impl Process {
 
                             /* it is an expected ended */
                         } else {
-                            success = true;
                             eprintln!("INFO exited: '{}' (exit status {}; expected)", 
                                       self.config.name, 
                                       exit_status_code);
                         }
+                        self.state = State::EXITED;
                         break ;
                     },
                     /* le program has not ended yet : check the time*/
@@ -209,8 +214,8 @@ impl Process {
                         let nownow = Instant::now();
                         let duree = nownow.duration_since(now);
                         if duree > self.config.starttime {
+                            self.state = State::RUNNING;
                             eprintln!("INFO spawned: '{}' with pid {:?}", self.config.name, child.id());
-                            success = true;
                             break ;
                         } else { 
                             continue ;
@@ -220,30 +225,38 @@ impl Process {
                 }
             }
         }
-        success
-    }
-    /// call in loop try launch no more than startretries or
-    /// until the program has started
-    fn try_execute(&mut self) -> State {
-        for nb_try in 0..self.config.startretries+1{
-            println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
-            if self.try_launch() {
-                return State::RUNNING;
-            }
-        }
-        State::BACKOFF
     }
 
-    fn stop(&mut self) {
+    /// call in loop try launch no more than startretries or
+    /// until the program has started
+    /// change state to state backoff if don't succeed launch the process
+    fn try_execute(&mut self) -> Message{
+        if self.state == State::RUNNING {
+            return format!("{}: ERROR (already running)", self.config.name);
+        }
+        for nb_try in 0..self.config.startretries+1{
+            println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
+            self.try_launch();
+            if self.state == State::RUNNING {
+                return format!("{}: RUNNING", self.config.name);
+            }
+        }
+        self.state = State::BACKOFF;
+        format!("{}: FATAL (too many try)", self.config.name)
+    }
+
+    /// try stoping the process by sending the stopsignal stated in the conf
+    /// if the process isn't dead after stoptime send a SIGKILL to it
+    fn stop(&mut self) -> Message {
         if let Some(ref mut child) = self.child {
             match kill(Pid::from_raw(child.id() as i32), self.config.stopsignal) {
                 Ok(_) => {;}, 
-                Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
+                Err(_) => {;},
             }
         }
         else {
             eprintln!("{}: ERROR (not running)", self.config.name);
-            return ;
+            return format!("{}: ERROR (not running)", self.config.name);
         }
         let now = Instant::now();
         loop {
@@ -251,10 +264,14 @@ impl Process {
             let duree = nownow.duration_since(now);
             sleep(Duration::from_millis(10));
 
-            if self.try_wait() == State::BACKOFF {
-                self.child = None;
-                return ;
+            self.try_wait();
+
+            // stoped with stopsignal
+            if self.state != State::RUNNING {
+                return format!("{}: STOPPED", self.config.name);
             }
+
+            // have to kill manualy
             if duree > self.config.stoptime {
                 if let Some(ref mut child) = self.child {
                     match child.kill() {
@@ -262,43 +279,50 @@ impl Process {
                         Err(_) => eprintln!("{}: ERROR (not running)", self.config.name),
                     }
                 }
-                return ;
+                self.state = State::KILLED;
+                return format!("{}: KILLED", self.config.name);
             }
         }
     }
 
-    fn status(&mut self) {
-        self.sender.send(format!("{}: {:?}", self.config.name, self.state));
+    /// Send a formated string about the status of the process to the main thread
+    fn status(&mut self) -> Message {
+        format!("{}: {:?}", self.config.name, self.state)
     }
 
     fn handle_cmd(&mut self, cmd: Instruction) {
-        match cmd {
+        let message = match cmd {
             Instruction::STOP => {
-                self.stop();
+                self.stop()
             },
             Instruction::STATUS => { ;
-                self.status();
+                self.status()
             },
             Instruction::START => { ;
-                self.state = self.try_execute();
+                self.try_execute()
             },
             Instruction::RESTART => { ;
-                self.stop();
-                self.state = self.try_execute();
+                format!("{}\n{}",self.stop(), self.try_execute())
             },
-            Instruction::RELOAD => { ;
+            Instruction::REREAD => { ;
+                format!("not implemented yet")
             },
-            _ => { ;
+            _ => { 
+                format!("unrecognised instruction")
             },
-        }
+        };
+        self.sender.send(message);
     }
+
+    /// try receive Once and then loop forever : try receiving and waiting 
+    /// alternatively
     pub fn manage_program(&mut self) {
-        self.state = self.try_execute();
+        self.try_execute();
 
         //eprintln!("config: {:#?}", self.config);
         loop {
             match self.receiver.try_recv() {
-                Ok(ins) => {
+                Ok((ins, conf)) => {
                     eprintln!("INFO process '{}' receive {:?}", self.config.name, ins);
                     if ins == Instruction::SHUTDOWN {
                         break ;

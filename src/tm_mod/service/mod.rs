@@ -38,19 +38,19 @@ impl Service {
             .ok_or(ExecError::ProcessName(String::from(p_name)));
 
         thread.map_err(|e| ExecErrors{e_vect: vec![e]})
-            .and_then(|t| t.send(thread_id, ins, nb_receive))
+            .and_then(|t| t.send(thread_id, ins, None, nb_receive))
     }
 
     pub fn send_to_all_process(&self, ins: Instruction, nb_receive: &mut usize) -> Result<(), ExecErrors>  {
         let e: Vec<ExecError> = self.thread_hash.values()
-            .filter_map(|t| t.send(None, ins, nb_receive).err())
+            .filter_map(|t| t.send(None, ins, None, nb_receive).err())
             .flat_map(|e| e.e_vect.into_iter())
             .collect();
 
         ExecErrors::result_from_e_vec(e)
     }
 
-    fn launch_thread(&mut self, config: Config, sender_to_main: mpsc::Sender<String>) -> (std_thread::JoinHandle<()>, mpsc::Sender<Instruction>) {
+    fn launch_thread(&mut self, config: Config, sender_to_main: mpsc::Sender<String>) -> (std_thread::JoinHandle<()>, mpsc::Sender<(Instruction, Option<Config>)>) {
         let (sender, receiver) = mpsc::channel();
         let handle = std_thread::spawn(move || {
             let mut process = Process::new(config, receiver, sender_to_main);
@@ -78,7 +78,7 @@ impl Service {
         // Stop threads not found in the new hash but present in the old one
         self.thread_hash.retain( |thread_name, thread| { // If ret is false elem is removed from HashMap
             match reread_little_hash.get(thread_name) {
-                None => { thread.send(None, Instruction::SHUTDOWN, &mut 0);
+                None => { thread.send(None, Instruction::SHUTDOWN, None, &mut 0);
                           false },
                 Some(_) => true,
             }

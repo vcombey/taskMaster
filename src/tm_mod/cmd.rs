@@ -1,12 +1,9 @@
-use super::config::Config;
-
 #[derive(Serialize, PartialEq, Deserialize, Clone, Copy, Debug)]
 pub enum Instruction {
     START,
     RESTART,
     STOP,
-    // RELOAD(Option<Config>),
-    RELOAD,
+    REREAD,
     STATUS,
     SHUTDOWN,
 }
@@ -46,7 +43,7 @@ impl Cmd {
             &"start" => Instruction::START,
             &"restart" => Instruction::RESTART,
             &"stop" => Instruction::STOP,
-            &"reload" => Instruction::RELOAD,
+            &"reread" => Instruction::REREAD,
             &"status" => Instruction::STATUS,
             &"shutdown" => Instruction::SHUTDOWN,
             &value => return Err(ParseError::InvalidCommand(value.to_string())),
@@ -59,7 +56,7 @@ impl Cmd {
                     target_vec.push(ret);
                 }
             } else {
-                return Err(ParseError::MissingTarget);
+                target_vec.push(Target::ALL);
             }
             if target_vec.is_empty() {
                 target_vec.push(Target::ALL)
