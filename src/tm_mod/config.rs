@@ -69,6 +69,8 @@ pub struct Config {
     pub numprocs: usize, // non-fatal
 }
 
+static VALID_FIELDS: [&'static str; 14] = ["cmd", "workingdir", "autostart", "env", "stdout", "stderr", "exitcodes", "startretries", "umask", "autorestart", "starttime", "stopsignal", "stoptime", "numprocs"];
+
 impl Config {
     /// Creates a Config instance from the process name and a
     /// Yaml struct representing the config options. Parses
@@ -104,6 +106,11 @@ impl Config {
             Some(slice) => self::Config::parse_signal(slice).unwrap(),
             None => SIGTERM,
         };
+        for (key, _) in config.as_hash().unwrap().iter() {
+            if !VALID_FIELDS.contains(&key.as_str().expect("bad field name expected string")) {
+                panic!("bad field: {}", key.as_str().unwrap());
+            }
+        }
 
         Config {
             name:  String::from(name),
