@@ -28,6 +28,7 @@ use tm_mod::config::Config;
 use tm_mod::cmd::Instruction;
 
 #[derive(Debug)]
+/// A process struct represent a thread which handle a process
 pub struct Process {
     command: Command,
     config: Config,

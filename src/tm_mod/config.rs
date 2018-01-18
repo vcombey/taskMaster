@@ -16,9 +16,9 @@ pub enum Autorestart {
 
 
 #[derive(Debug, Clone)]
+/// The Config struct represents all the informations we want
+/// to have about a single process we are supervising.
 pub struct Config {
-    /// The Config struct represents all the informations we want
-    /// to have about a single process we are supervising.
     pub name: String, // fatal
     pub argv: String, // fatal
     pub workingdir: Option<String>, // fatal
@@ -35,7 +35,6 @@ pub struct Config {
     pub stoptime: Duration, // non-fatal
     pub numprocs: usize, // non-fatal
 }
-
 
 impl Config {
     /// Function to generate a new instance of a Config strct.
@@ -114,16 +113,16 @@ impl Config {
 
     /// Returns true if the 2 config have fatal differences (one that necessites
     /// restarting to apply)
-	pub fn fatal_cmp(&self, other: &Config) -> bool {
+    pub fn fatal_cmp(&self, other: &Config) -> bool {
         if self.name != other.name ||
             self.argv != other.argv ||
-            self.workingdir != other.workingdir ||
-            self.env != other.env ||
-            self.stdout != other.stdout ||
-            self.stderr != other.stderr ||
-            self.umask != other.umask {
-                return true;
-            }
+                self.workingdir != other.workingdir ||
+                self.env != other.env ||
+                self.stdout != other.stdout ||
+                self.stderr != other.stderr ||
+                self.umask != other.umask {
+                    return true;
+                }
         false
     }
 
@@ -173,9 +172,9 @@ impl Config {
         // config. Parsing it as a tuple of key, value.
         let env: Option<Vec<(String, String)>> = match (&config["env"]).as_hash() {
             Some(hash) => { Some(hash.iter()
-                                 .map(|(name, argv)| {
-                                     (String::from(name.as_str().unwrap()), 
-                                      String::from(argv.as_str().unwrap()))
+                                 .map(|(var, value)| {
+                                     (String::from(var.as_str().unwrap()), 
+                                      String::from(value.as_str().unwrap()))
                                  }) //TODO: gerer les nombre
                                  .collect())
             },
