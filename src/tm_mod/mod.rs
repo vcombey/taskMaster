@@ -151,7 +151,7 @@ impl<'tm> TmStruct<'tm> {
                 }
                 // Insert into little map
                 process_map.insert(String::from(process_name),
-                                   Config::from_yaml(process_name, argv, process_config));
+                                   Config::new(process_name, argv, process_config));
                 taken_process_names.push(process_name);
             }
             // Check if a service / process with the same name already exists

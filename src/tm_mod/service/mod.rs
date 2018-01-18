@@ -78,8 +78,10 @@ impl Service {
                         // thread and its process who will now host it too.
                         // (even if the 2 configs are indentical). If numprocs
                         // differ, appropriate number of process must be killed
-                        // / added.
-                        if new_config.numprocs > thread.config.numprocs {
+                        // added.
+                        // the first condition is => for send REREAD to the
+                        // threads even if the numproc hasn't changed
+                        if new_config.numprocs >= thread.config.numprocs {
                             print_err(thread.send(None, Instruction::REREAD, Some(new_config.clone()), &mut 0));
                             for _ in thread.config.numprocs..new_config.numprocs {
                                 let t = Thread::new(new_config.clone(), sender_to_main.clone());

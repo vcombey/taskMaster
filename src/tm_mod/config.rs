@@ -1,9 +1,8 @@
 
-#[allow(unused_imports)]
-use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
+use yaml_rust::Yaml;
+use yaml_rust::yaml;
 
-#[allow(unused_imports)]
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use nix::sys::signal::Signal::*;
 use nix::sys::signal::Signal;
 
@@ -14,6 +13,40 @@ pub enum Autorestart {
     UNEXPECTED,
 }
 
+macro_rules! define_to_ref (
+    ($name:ident, $t:ty, $yt:ident) => (
+        pub fn $name<'a,'b>(yaml: &'a Yaml, champ: &'b str) -> Option<$t> {
+            let yaml = &yaml[champ];
+            if yaml.is_badvalue() {
+                return None;
+            }
+            match *yaml {
+                Yaml::$yt(ref v) => Some(v),
+                _ => panic!("invalid type for: {}", champ),
+            }
+        }
+        );
+    );
+
+macro_rules! define_to (
+    ($name:ident, $t:ident, $yt:ident) => (
+        pub fn $name(yaml: &Yaml, champ: &str) -> Option<$t> {
+            let yaml = &yaml[champ];
+            if yaml.is_badvalue() {
+                return None;
+            }
+            match *yaml {
+                Yaml::$yt(v) => Some(v),
+                _ => panic!("invalid type:"),
+            }
+        }
+        );
+    );
+
+define_to_ref!(to_str, &'a str, String);
+define_to_ref!(to_hash, &'a yaml::Hash, Hash);
+define_to!(to_i64, i64, Integer);
+define_to!(to_bool, bool, Boolean);
 
 #[derive(Debug, Clone)]
 /// The Config struct represents all the informations we want
@@ -37,42 +70,58 @@ pub struct Config {
 }
 
 impl Config {
-    /// Function to generate a new instance of a Config strct.
-    /// Only mandatory arguments are name and command.
-    /// Other arguments can be skipped by giving `None' 
-    pub fn new(name: &str,
-               argv: &str, 
-               workingdir: Option<&str>,
-               autostart: Option<bool>,
-               env: Option<Vec<(String, String)>>,
-               stdout: Option<&str>,
-               stderr: Option<&str>,
-               exitcodes: Option<Vec<i64>>,
-               startretries: Option<i64>,
-               umask: Option<i64>,
-               autorestart: Option<&str>,
-               starttime: Option<i64>,
-               stopsignal: Signal,
-               stoptime: Option<i64>,
-               numprocs: Option<i64>
-              ) -> Self {
+    /// Creates a Config instance from the process name and a
+    /// Yaml struct representing the config options. Parses
+    /// YAML into variables and calls new.
+    pub fn new(name: &str, argv: &str, config: &Yaml) -> Self {
+
+        // env is represented by a nested YAML into the current
+        // config. Parsing it as a tuple of key, value.
+        let env: Option<Vec<(String, String)>> = match to_hash(config, "env") {
+            Some(hash) => {
+                Some(hash.iter()
+                     .map(|(var, value)| {
+                         (String::from((var).as_str().unwrap()), 
+                          String::from((value).as_str().unwrap()))
+                     }) //TODO: gerer les nombre
+                     .collect())
+            },
+            None => None,
+        };
+
+        // Exitcodes can be either one field, or many.
+        let exitcodes =  match (&config["exitcodes"]).as_vec() {
+            Some(v) => Some(v.iter().map(|a| {
+                a.as_i64().unwrap()})
+                            .collect()),
+            None => match to_i64(config, "exitcodes") {
+                Some(i) => Some(vec![i]),
+                None => None,
+            },
+        };
+
+        let stopsignal = match to_str(config, "stopsignal") {
+            Some(slice) => self::Config::parse_signal(slice).unwrap(),
+            None => SIGTERM,
+        };
+
         Config {
             name:  String::from(name),
             argv:  String::from(argv),
-            workingdir: match workingdir {
+            workingdir: match to_str(config,"workingdir") {
                 Some(slice) => Some(String::from(slice)),
                 None => None,
             },
-            autostart: match autostart {
+            autostart: match to_bool(config,"autostart") {
                 Some(value) => value,
                 None => true,
             },
             env,
-            stdout: match stdout {
+            stdout: match to_str(config, "stdout") {
                 Some(slice) => Some(String::from(slice)),
                 None => None,
             },
-            stderr: match stderr {
+            stderr: match to_str(config, "stderr") {
                 Some(slice) => Some(String::from(slice)),
                 None => None,
             },
@@ -80,31 +129,33 @@ impl Config {
                 Some(v) => v,
                 None => vec![1, 2],
             },
-            startretries: match startretries {
+            startretries: match to_i64(config, "startretries") {
                 Some(i) => i as u64, // TODO check coherence of types i64 and u64
                 None => 3,
             },
-            umask: match umask {
+            umask: match to_i64(config, "umask") {
                 Some(i) => i as u16,
                 None => 0700,
             },
-            autorestart: match autorestart { //TODO: voir ce que c'est
-                Some(slice) => if slice == "unexpected" { Autorestart::UNEXPECTED } 
-                else if slice == "true" { Autorestart::TRUE }
-                else if slice == "false"{ Autorestart::FALSE }
-                else { panic!("bad value for autorestart") }
+            autorestart: match to_str(config, "autorestart") {
+                Some(slice) => match slice {
+                    "unexpected" => Autorestart::UNEXPECTED,
+                    "true"=> Autorestart::TRUE,
+                    "false" => Autorestart::FALSE,
+                    _ => panic!("bad value for autorestart"),
+                }
                 None => Autorestart::UNEXPECTED,
             },
-            starttime:  match starttime {
+            starttime:  match to_i64(config, "starttime") {
                 Some(i) => Duration::from_secs(i as u64),
                 None => Duration::from_secs(1),
             },
             stopsignal,
-            stoptime:  match stoptime {
+            stoptime:  match to_i64(config, "stoptime") {
                 Some(i) => Duration::from_secs(i as u64),
                 None => Duration::from_secs(10),
             },
-            numprocs:  match numprocs {
+            numprocs:  match to_i64(config, "numprocs") {
                 Some(i) => {assert!(i > 0); i as usize},
                 None => 1,
             },
@@ -161,56 +212,5 @@ impl Config {
             "INFO"=>  Some(SIGINFO),
             _ =>      None,
         }
-    }
-
-    /// Creates a Config instance from the process name and a
-    /// Yaml struct representing the config options. Parses
-    /// YAML into variables and calls new.
-    pub fn from_yaml(name: &str, argv: &str, config: &Yaml) -> Config {
-
-        // env is represented by a nested YAML into the current
-        // config. Parsing it as a tuple of key, value.
-        let env: Option<Vec<(String, String)>> = match (&config["env"]).as_hash() {
-            Some(hash) => { Some(hash.iter()
-                                 .map(|(var, value)| {
-                                     (String::from(var.as_str().unwrap()), 
-                                      String::from(value.as_str().unwrap()))
-                                 }) //TODO: gerer les nombre
-                                 .collect())
-            },
-            None => None,
-        };
-
-        // Exitcodes can be either one field, or many.
-        let exitcodes =  match (&config["exitcodes"]).as_vec() {
-            Some(v) => Some(v.iter().map(|a| {
-                a.as_i64().unwrap()})
-                            .collect()),
-            None => match (&config["exitcodes"]).as_i64() {
-                Some(i) => Some(vec![i]),
-                None => None,
-            },
-        };
-
-        let stop_signal = match (&config["stopsignal"]).as_str() {
-            Some(slice) => self::Config::parse_signal(slice).unwrap(),
-            None => SIGTERM,
-        };
-        Config::new(name,
-                    argv,
-                    (&config["workingdir"]).as_str(),
-                    (&config["autostart"]).as_bool(),
-                    env,
-                    (&config["stdout"]).as_str(),
-                    (&config["stderr"]).as_str(),
-                    exitcodes,
-                    (&config["startretries"]).as_i64(),
-                    (&config["umask"]).as_i64(),
-                    (&config["autorestart"]).as_str(),
-                    (&config["starttime"]).as_i64(),
-                    stop_signal,
-                    (&config["stoptime"]).as_i64(),
-                    (&config["numprocs"]).as_i64(),
-                    )
     }
 }
