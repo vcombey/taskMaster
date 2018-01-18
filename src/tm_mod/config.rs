@@ -1,8 +1,7 @@
-// Imorting yaml
+
 #[allow(unused_imports)]
 use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
 
-// Imorting std
 #[allow(unused_imports)]
 use std::time::{Duration, Instant};
 use nix::sys::signal::Signal::*;
@@ -113,7 +112,8 @@ impl Config {
         }
     }
 
-	/// Returns true if the 2 config have fatal differences (one that necessites restarting to apply)
+    /// Returns true if the 2 config have fatal differences (one that necessites
+    /// restarting to apply)
 	pub fn fatal_cmp(&self, other: &Config) -> bool {
         if self.name != other.name ||
             self.argv != other.argv ||
@@ -215,4 +215,3 @@ impl Config {
                     )
     }
 }
-

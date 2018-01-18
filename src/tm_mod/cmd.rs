@@ -8,7 +8,8 @@ pub enum Instruction {
     SHUTDOWN,
 }
 
-/// List of possible targets for an instruction. /// ALL -> Every single process in every service.
+/// List of possible targets for an instruction. /// ALL -> Every single process
+/// in every service.
 /// Process(p) -> The process with name p.
 /// Service(s) -> Every single process in service named s.
 /// ServiceProcess(s, p) -> The process name p in service s.

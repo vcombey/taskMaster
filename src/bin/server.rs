@@ -38,24 +38,13 @@ pub fn receive(stream: &mut TcpStream) -> Cmd {
 fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()> {
     let cmd = receive(&mut stream);
 
-    //let mut buffer = [0; 512];
-    //stream.read(&mut buffer).unwrap();
-
     if cmd.instruction == Instruction::SHUTDOWN {
         return Err(());
     }
-
-    //Testing REREAD
-    /////////////////////////////////////////
     if cmd.instruction == Instruction::REREAD {
-//        println!("{:#?}", tm);
         tm.reread();
- //       println!("{:#?}", tm);
     }
-    /////////////////////////////////////////
 
-    //println!("Request: {:?}", cmd);
-    
     let mut nb_receive = 0;
     let response_err = match tm.exec_cmd(cmd, &mut nb_receive) {
         Err(e) => format!("{}", e),

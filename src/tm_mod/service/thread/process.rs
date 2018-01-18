@@ -315,7 +315,9 @@ impl Process {
                 format!("unrecognised instruction")
             },
         };
-        self.sender.send(message);
+        if let Err(_) = self.sender.send(message) {
+            eprintln!("process send to main thread failed");
+        }
     }
 
     /// try receive Once and then loop forever : try receiving and waiting 

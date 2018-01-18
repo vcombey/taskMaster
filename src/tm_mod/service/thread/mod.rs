@@ -34,8 +34,10 @@ impl Drop for Thread {
     fn drop(&mut self) {
         println!("Sending terminate message to one workers.");
 
-        self.sender.send((Instruction::SHUTDOWN, None));
-
+        match self.sender.send((Instruction::SHUTDOWN, None)) {
+            Err(_) => eprintln!("sending instruction shutdown failed"),
+            _ =>{;},
+        }
         if let Some(j_h) = self.join_handle.take() {
             match j_h.join() {
                 Err(e) => eprintln!("{:?}", e),
@@ -46,12 +48,12 @@ impl Drop for Thread {
 }
 
 #[derive(Debug)]
-pub struct Thread_vec {
+pub struct ThreadVec {
     pub config: Config,
     pub vec: Vec<Thread>,
 }
 
-impl Thread_vec {
+impl ThreadVec {
 
     pub fn new(config: &Config, sender_to_main: &mut mpsc::Sender<String>) -> Self {
         let mut vec = Vec::with_capacity(config.numprocs);
@@ -59,7 +61,7 @@ impl Thread_vec {
             let thread = Thread::new(config.clone(), sender_to_main.clone());
             vec.push(thread);
         }
-        Thread_vec {
+        ThreadVec {
             config: config.clone(),
             vec,
         }
@@ -75,14 +77,6 @@ impl Thread_vec {
                 t.sender.send((ins, conf.clone())).map_err(|_| ExecError::Sending((self.config.name.clone(), i))).and_then(|_| {*nb_receive+=1; Ok(())}).err()
             }).collect(),
         };
-
-        //*nb_receive += self.sender.len() - e.len();
         ExecErrors::result_from_e_vec(e)
     }
-
-    pub fn apply<F>(&mut self, fct: F)
-        where F: FnOnce(&Thread_vec)
-        {
-            fct(self);
-        }
 }

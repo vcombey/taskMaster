@@ -15,6 +15,7 @@ pub mod service;
 pub mod config;
 pub mod cmd;
 pub mod exec_error;
+pub mod error_utils;
 
 // Loading submodules's struct
 use self::service::Service;
@@ -95,7 +96,8 @@ impl<'tm> TmStruct<'tm> {
         ExecErrors::result_from_e_vec(e)//.map_err(|e| println!("error is: {}",e));
     }
 
-    /// Reads the content of the config file, and transforms it into a vector of Yaml struct.
+    /// Reads the content of the config file, and transforms it into a vector of
+    /// Yaml struct.
     pub fn parse_config_file(&'tm self) -> Vec<Yaml>{
         let mut stream = File::open(self.config_file)
             .expect("An error happened when opening the config file");
@@ -182,17 +184,19 @@ impl<'tm> TmStruct<'tm> {
         // Loading the new HashMap of configs
         let mut reread_service_hash = self.hash_config();
 
-        // Stop services corresponding to keys contained in the current service hash but not in the new one and removed them from service_hash
-        self.service_hash.retain( |service_name, service| { // Every element for which this function returns false is removed from the HashMap
-            match reread_service_hash.get(service_name) {
-                None => { service.send_to_all_process(Instruction::SHUTDOWN, &mut 0);
-                          false},
-                Some(_) => true,
-            }
-        });
+        // Stop services corresponding to keys contained in the current service
+        // hash but not in the new one and removed them from service_hash
+        // Every element for which this function returns false is removed from
+        // the HashMap
+        self.service_hash.retain( |service_name, _|
+            reread_service_hash.get(service_name).is_some()
+        );
 
-        // Spawn services corresponding to keys contained in the new services hashmap and remove them from the HashMap
-        reread_service_hash.retain( |new_service_name, new_process_hash| { // Every element for which this function returns false is removed from the HashMap 
+        // Spawn services corresponding to keys contained in the new services
+        // hashmap and remove them from the HashMap
+        // Every element for which this function returns false is removed from
+        // the HashMap 
+        reread_service_hash.retain( |new_service_name, new_process_hash| {
             match self.service_hash.get(new_service_name) {
                 None => { let mut s = Service::new(new_service_name.clone());
                           s.launch_from_hash(new_process_hash.clone(), &mut self.sender_to_main);

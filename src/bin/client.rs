@@ -11,6 +11,7 @@ use std::io::{Write, Read};
 
 use task_master::tm_mod::cmd::Cmd;
 use task_master::cli;
+use task_master::tm_mod::error_utils::print_err;
 use std::error::Error;
 
 fn parse_into_cmd(line: &str) -> Option<Cmd> {
@@ -45,17 +46,19 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
 fn emit<T>(stream: &mut TcpStream, t: T) -> Result<(), String>
     where T: serde::Serialize + serde::export::fmt::Debug
 {
-    println!("cmd : {:?}", t);
+    //println!("cmd : {:?}", t);
     let serialized : String = serde_json::to_string(&t).map_err(|e| format!("{}", e))?;
     stream.write(&serialized.as_bytes()).map_err(|e| format!("{}", e))?;
     Ok(())
 }
 
-
 fn main() {
     let mut con = Context::new();
     loop {
-        let res = con.read_line("task_master> ", &mut |_| {}).unwrap();
+        let res = match con.read_line("task_master> ", &mut |_| {}) {
+            Ok(line) => line,
+            Err(_) => return ,
+        };
         if let Some(cmd) = parse_into_cmd(&res) {
             let mut buffer = String::new();
             //println!("cmd : {:#?}", cmd);
@@ -64,7 +67,7 @@ fn main() {
                     match emit(&mut stream, cmd) {
                         Ok(_) => {
                             if let Err(e) = stream.read_to_string(&mut buffer) {
-                                println!("{}", e.description());
+                                eprintln!("{}", e.description());
                             }
                             println!("{}", buffer);
                         },
@@ -75,9 +78,7 @@ fn main() {
             }
         }
         if !res.as_str().split_whitespace().next().is_none() {
-            if let Err(e) = con.history.push(res.into()) {
-                println!("{}", e.description());
-            }
+            print_err(con.history.push(res.into()));
         }
     }
 }
