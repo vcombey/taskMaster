@@ -29,7 +29,7 @@ fn parse_argv (args: &[String]) -> (&str, &str) {
 pub fn receive(stream: &mut TcpStream) -> Result<Cmd, ()> {
     let mut buffer = [0; 512];
 
-    let nb_bytes = stream.read(&mut buffer).unwrap();
+    let nb_bytes = stream.read(&mut buffer).expect("Cannot read instruction from stream");
     let request = &buffer[..nb_bytes];
  //   eprintln!("Request: {:?} {:?}", nb_bytes, String::from_utf8_lossy(request));
     serde_json::from_str(&String::from_utf8_lossy(request)).map_err(|_| eprintln!("Could not interpret request from the client"))
@@ -56,15 +56,15 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()>
     let response = tm.try_receive_from_threads(nb_receive, Duration::from_secs(2))
         .unwrap_or(String::from("pb receiving from threads"));
     let response = format!("{}{}", response, response_err);
-    stream.write(response.as_bytes()).unwrap();
+    stream.write(response.as_bytes()).expect("Cannot write response to stream");
     Ok(())
 }
 
 fn launch_server(port: &str, tm: &mut TmStruct) -> Result<(), ()> {
-    let listener = TcpListener::bind(port).unwrap();
+    let listener = TcpListener::bind(port).expect(&format!("Failed to bind to port {}", port));
 
     for stream in listener.incoming() {
-        let stream = stream.unwrap();
+        let stream = stream.expect("Failed to retrieve stream");
 
         if handle_connection(stream, tm).is_err() {
             return Err(());
@@ -100,5 +100,5 @@ fn main() {
 
     let map = tm.hash_config();
     tm.launch_from_hash(map);
-    let _ = launch_server("127.0.0.1:8080", &mut tm);
+    let _ = launch_server("127.0.0.1:4242", &mut tm);
 }

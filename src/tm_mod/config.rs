@@ -83,8 +83,8 @@ impl Config {
             Some(hash) => {
                 Some(hash.iter()
                      .map(|(var, value)| {
-                         (String::from((var).as_str().unwrap()), 
-                          String::from((value).as_str().unwrap()))
+                         (String::from((var).as_str().expect("Bad env keyword")), 
+                          String::from((value).as_str().expect("Bad env value")))
                      }) //TODO: gerer les nombre
                      .collect())
             },
@@ -94,7 +94,7 @@ impl Config {
         // Exitcodes can be either one field, or many.
         let exitcodes =  match (&config["exitcodes"]).as_vec() {
             Some(v) => Some(v.iter().map(|a| {
-                a.as_i64().unwrap()})
+                a.as_i64().expect("Expected numeric value for field exitcode")})
                             .collect()),
             None => match to_i64(config, "exitcodes") {
                 Some(i) => Some(vec![i]),
@@ -103,11 +103,11 @@ impl Config {
         };
 
         let stopsignal = match to_str(config, "stopsignal") {
-            Some(slice) => self::Config::parse_signal(slice).unwrap(),
+            Some(slice) => self::Config::parse_signal(slice).expect("Expected signal for field signal"),
             None => SIGTERM,
         };
-        for (key, _) in config.as_hash().unwrap().iter() {
-            if !VALID_FIELDS.contains(&key.as_str().expect("bad field name expected string")) {
+        for (key, _) in config.as_hash().expect("Bad YAML format").iter() {
+            if !VALID_FIELDS.contains(&key.as_str().expect("Expected str for field name")) {
                 panic!("bad field: {}", key.as_str().unwrap());
             }
         }

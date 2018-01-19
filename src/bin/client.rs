@@ -62,7 +62,7 @@ fn main() {
         if let Some(cmd) = parse_into_cmd(&res) {
             let mut buffer = String::new();
             //eprintln!("cmd : {:#?}", cmd);
-            match TcpStream::connect("127.0.0.1:8080") {
+            match TcpStream::connect("127.0.0.1:4242") {
                 Ok(mut stream) => {
                     match emit(&mut stream, cmd) {
                         Ok(_) => {

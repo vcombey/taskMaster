@@ -1,3 +1,0 @@
-programs:
-    pwd:
-        cmd: "pwd"

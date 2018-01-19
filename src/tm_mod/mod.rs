@@ -126,15 +126,15 @@ impl<'tm> TmStruct<'tm> {
     pub fn hash_config(&self) -> HashMap<String, HashMap<String,Config>> {
         let doc = self.parse_config_file();
         let doc = &doc[0];
-        let doc = doc.as_hash().unwrap();
+        let doc = doc.as_hash().expect("Failed to convert YAML to hash");
 
         let mut taken_process_names: Vec<&str> = Vec::new();
 
         // Big map build
         let mut service_hash = HashMap::new();
         for (service_name, service_yaml) in doc.iter() {
-            let service_name = service_name.as_str().unwrap();
-            let service_yaml = service_yaml.as_hash().unwrap();
+            let service_name = service_name.as_str().expect("Expected str for the service name");
+            let service_yaml = service_yaml.as_hash().expect("Failed to convert YAML to hash");
 
             // Litle map build
             let mut process_map = HashMap::new();

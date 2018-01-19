@@ -6,6 +6,7 @@ target/**
 target/debug/*
 target/doc/*
 target
+!target/release/*
 >>>>>>> parse
 .projectile
 

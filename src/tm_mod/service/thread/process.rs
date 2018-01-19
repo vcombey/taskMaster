@@ -211,13 +211,15 @@ impl Process {
         self.start();
         if let Some(ref mut child) = self.child {
             let now = Instant::now();
+            let mut i = 0;
             loop {
+                if i == 0 {eprintln!("INFO spawned: '{}' with pid {:?}", self.config.name, child.id());}
+                i += 1;
                 match child.try_wait() {
 
                     /* le program has ended */
                     Ok(Some(exit_status)) => {
-                        eprintln!("INFO spawned: '{}' with pid {:?}", self.config.name, child.id());
-                        let exit_status_code = exit_status.code().unwrap();
+                        let exit_status_code = exit_status.code().unwrap_or(1);
                         let nownow = Instant::now();
                         let duree = nownow.duration_since(now);
 
