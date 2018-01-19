@@ -137,10 +137,12 @@ impl Config {
                 None => vec![1, 2],
             },
             startretries: match to_i64(config, "startretries") {
-                Some(i) => i as u64, // TODO check coherence of types i64 and u64
+                Some(i) if i < 0 => panic!("startretries can't be negative"),
+                Some(i) => i as u64,
                 None => 3,
             },
             umask: match to_i64(config, "umask") {
+                Some(i) if i < 0 => panic!("umask can't be negative"),
                 Some(i) => i as u16,
                 None => 0700,
             },
@@ -154,15 +156,18 @@ impl Config {
                 None => Autorestart::UNEXPECTED,
             },
             starttime:  match to_i64(config, "starttime") {
+                Some(i) if i < 0 => panic!("starttime can't be negative"),
                 Some(i) => Duration::from_secs(i as u64),
                 None => Duration::from_secs(1),
             },
             stopsignal,
             stoptime:  match to_i64(config, "stoptime") {
+                Some(i) if i < 0 => panic!("stoptime can't be negative"),
                 Some(i) => Duration::from_secs(i as u64),
                 None => Duration::from_secs(10),
             },
             numprocs:  match to_i64(config, "numprocs") {
+                Some(i) if i < 0 => panic!("numprocs can't be negative"),
                 Some(i) => {assert!(i > 0); i as usize},
                 None => 1,
             },
