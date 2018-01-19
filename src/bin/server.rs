@@ -26,17 +26,17 @@ fn parse_argv (args: &[String]) -> (&str, &str) {
     (option, filename)
 }
 
-pub fn receive(stream: &mut TcpStream) -> Cmd {
+pub fn receive(stream: &mut TcpStream) -> Result<Cmd, ()> {
     let mut buffer = [0; 512];
 
     let nb_bytes = stream.read(&mut buffer).unwrap();
     let request = &buffer[..nb_bytes];
  //   eprintln!("Request: {:?} {:?}", nb_bytes, String::from_utf8_lossy(request));
-    return serde_json::from_str(&String::from_utf8_lossy(request)).unwrap();
+    serde_json::from_str(&String::from_utf8_lossy(request)).map_err(|_| eprintln!("Could not interpret request from the client"))
 }
 
 fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()> {
-    let cmd = receive(&mut stream);
+    let cmd = receive(&mut stream)?;
 
     if cmd.instruction == Instruction::SHUTDOWN {
         return Err(());

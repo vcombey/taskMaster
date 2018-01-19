@@ -34,7 +34,7 @@ service_3:
     starttime: 1
     exitcodes:
       - 0
-    autorestart: unexpected
+    autorestart: no
 
 service_4:
   exitcode:
@@ -42,7 +42,7 @@ service_4:
     starttime: 1
     exitcodes:
       - 4
-    autorestart: yes
+    autorestart: no
 
   env:
     cmd: env.sh
@@ -55,10 +55,10 @@ service_4:
 service_5:
   cat:
     cmd: cat
-    numprocs: 5
+    numprocs: 2
 
   nostart:
-    cmd: ls.h
+    cmd: ls.sh
     starttime: 1
     autostart: false
     stdout: /tmp/test/nostart.txt

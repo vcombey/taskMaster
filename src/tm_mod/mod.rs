@@ -92,7 +92,6 @@ impl<'tm> TmStruct<'tm> {
         }).flat_map(|e| e.e_vect.into_iter())
             .collect();
 
-        eprintln!("nb receive: {}", nb_receive);
         ExecErrors::result_from_e_vec(e)//.map_err(|e| eprintln!("error is: {}",e));
     }
 
