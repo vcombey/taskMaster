@@ -8,11 +8,17 @@ use std::os::unix::process::ExitStatusExt;
 use std::io::Error;
 use std::thread::sleep;
 use std::time::Duration;
+use std::process::Stdio;
+
 use nix::sys::stat::umask;
 use nix::sys::stat::Mode;
 use nix::sys::signal::kill;
 use nix::sys::signal::Signal;
 use nix::unistd::Pid;
+
+use tm_mod::config::Config;
+use tm_mod::config::Autorestart;
+use tm_mod::cmd::Instruction;
 
 type Message = String;
 #[derive(Debug,PartialEq)]
@@ -24,8 +30,6 @@ enum State {
     EXITED,
     KILLED,
 }
-use tm_mod::config::Config;
-use tm_mod::cmd::Instruction;
 
 #[derive(Debug)]
 /// A process struct represent a thread which handle a process
@@ -74,8 +78,13 @@ impl Process {
         if let Some(ref string) = self.config.stdout {
             match File::create(string) {
                 Ok(file) => {self.command.stdout(file);},
-                Err(e) => eprintln!("{}", e),
+                Err(e) => {eprintln!("{}", e); 
+                    self.command.stdout(Stdio::null());
+                },
             }
+        }
+        else {
+            self.command.stdout(Stdio::null());
         }
         self
     }
@@ -84,8 +93,14 @@ impl Process {
         if let Some(ref string) = self.config.stderr {
             match File::create(string) {
                 Ok(file) => {self.command.stderr(file);},
-                Err(e) => eprintln!("{}", e),
+                Err(e) => {eprintln!("{}", e); 
+                    self.command.stderr(Stdio::null());
+                },
+
             }
+        }
+        else {
+            self.command.stderr(Stdio::null());
         }
         self
     }
@@ -146,7 +161,7 @@ impl Process {
     }
 
     /// call try wait on the child if any, update status, and write info if exited
-    fn try_wait(&mut self) { 
+    fn try_wait(&mut self) -> (Option<i32>, Option<Signal>){ 
         if let Some(mut child) = self.child.take() {
             match child.try_wait() {
 
@@ -158,13 +173,16 @@ impl Process {
                                       self.config.name, 
                                       exit_status_code);
                             self.state = State::EXITED;
+                            return (Some(exit_status_code), None);
                         }
                         None => {
                             if let Some(exit_signal) = exit_status.signal() {
+                                let exit_signal = Signal::from_c_int(exit_signal).unwrap();
                                 eprintln!("INFO stopped: '{}' (terminated by {:?}) ",
-                                          self.config.name,
-                                          Signal::from_c_int(exit_signal).unwrap());
+                                self.config.name,
+                                exit_signal);
                                 self.state = State::STOPPED;
+                                return (None, Some(exit_signal));
                             }
                         }
                     }
@@ -173,9 +191,11 @@ impl Process {
                 _ => {
                     self.child = Some(child);
                     self.state = State::RUNNING;
+                    return (None, None);
                 }
             }
         }
+        return (None, None);
     }
 
     /// try launch the programe one time
@@ -196,7 +216,7 @@ impl Process {
                         let duree = nownow.duration_since(now);
 
                         /* it is an unexpected ended */
-                        if duree < self.config.starttime || !self.config.exitcodes.contains(&(exit_status_code as i64)) {
+                        if duree < self.config.starttime {
                             eprintln!("INFO exited: '{}' (exit status {}; not expected)", 
                                       self.config.name, 
                                       exit_status_code);
@@ -308,9 +328,9 @@ impl Process {
             Instruction::REREAD => {
                 match config {
                     Some(config) => {self.config = config;
-                    format!("Process locally updating")},
-                None => format!("No config sent"),
-            }
+                        format!("Process locally updating")},
+                    None => format!("No config sent"),
+                }
             },
             _ => { 
                 format!("unrecognised instruction")
@@ -324,7 +344,9 @@ impl Process {
     /// try receive Once and then loop forever : try receiving and waiting 
     /// alternatively
     pub fn manage_program(&mut self) {
-        self.try_execute();
+        if self.config.autostart {
+            self.try_execute();
+        }
 
         //eprintln!("config: {:#?}", self.config);
         loop {
@@ -338,9 +360,30 @@ impl Process {
                 },
                 Err(_) => { ; },
             }
-/*            println!("meuuuuh");
-            sleep(Duration::from_secs(1));*/
-            self.try_wait();
+            /*            println!("meuuuuh");
+                          sleep(Duration::from_secs(1));*/
+            let (stat, sig) = self.try_wait();
+            //(Some(exit_status), None) => 
+            //(None, Some(signal)) => 
+            match self.config.autorestart {
+                Autorestart::TRUE => {self.try_execute();},
+                Autorestart::UNEXPECTED => {
+                    match (stat, sig) {
+                        (Some(exit_status), None) => {
+                            if !self.config.exitcodes.contains(&(exit_status as i64)) {
+                                self.try_execute();
+                            }
+                        },
+                        (None, Some(signal)) => {
+                            if signal != Signal::SIGKILL && self.config.stopsignal != signal {
+                                self.try_execute();
+                            }
+                        },
+                        _ => {;},
+                    }
+                },
+                Autorestart::FALSE => {;},
+            };
         }
     }
 }
