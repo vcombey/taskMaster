@@ -1,7 +1,7 @@
 // Loading YAML
 extern crate yaml_rust;
 #[allow(unused_imports)]
-use yaml_rust::{Yaml,YamlLoader, YamlEmitter};
+use yaml_rust::{Yaml,YamlLoader};
 
 // Loading std
 use std::collections::HashMap;
@@ -213,17 +213,5 @@ impl<'tm> TmStruct<'tm> {
                 .unwrap()
                 .reread(&mut new_process_hash, &mut self.sender_to_main);
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-
-    #[test]
-    fn test_bad_file() {
-    }
-
-    #[test]
-    fn test_bad_yaml() {
     }
 }

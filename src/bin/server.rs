@@ -69,9 +69,9 @@ fn launch_server(port: &str, tm: &mut TmStruct) -> Result<(), ()> {
     }
     Ok(())
 }
-extern crate daemonize;
+// extern crate daemonize;
 
-use daemonize::{Daemonize};
+// use daemonize::{Daemonize};
 
 fn main() {
     /*let daemonize = Daemonize::new()
