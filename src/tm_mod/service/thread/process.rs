@@ -169,9 +169,15 @@ impl Process {
                 Ok(Some(exit_status)) => {
                     match exit_status.code() {
                         Some(exit_status_code) => {
-                            eprintln!("INFO exited: '{}' (exit status {}; expected)", 
-                                      self.config.name, 
-                                      exit_status_code);
+                            if self.config.exitcodes.contains(&(exit_status_code as i64)) {
+                                eprintln!("INFO exited: '{}' (exit status {}; expected)", 
+                                          self.config.name, 
+                                          exit_status_code);
+                            } else {
+                                eprintln!("INFO exited: '{}' (exit status {}; unexpected)", 
+                                          self.config.name, 
+                                          exit_status_code);
+                            } 
                             self.state = State::EXITED;
                             return (Some(exit_status_code), None);
                         }
@@ -217,13 +223,13 @@ impl Process {
 
                         /* it is an unexpected ended */
                         if duree < self.config.starttime {
-                            eprintln!("INFO exited: '{}' (exit status {}; not expected)", 
+                            eprintln!("INFO exited: '{}' (exit status {}; hasn't lived enough)", 
                                       self.config.name, 
                                       exit_status_code);
 
                             /* it is an expected ended */
                         } else {
-                            eprintln!("INFO exited: '{}' (exit status {}; expected)", 
+                            eprintln!("INFO exited: '{}' (exit status {};  has lived enough)", 
                                       self.config.name, 
                                       exit_status_code);
                         }
@@ -255,8 +261,8 @@ impl Process {
         if self.state == State::RUNNING {
             return format!("{}: ERROR (already running)", self.config.name);
         }
-        for nb_try in 0..self.config.startretries+1{
-            println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
+        for _nb_try in 0..self.config.startretries+1{
+            //println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
             self.try_launch();
             if self.state == State::RUNNING {
                 return format!("{}: RUNNING", self.config.name);
@@ -348,7 +354,6 @@ impl Process {
             self.try_execute();
         }
 
-        //eprintln!("config: {:#?}", self.config);
         loop {
             match self.receiver.try_recv() {
                 Ok((ins, conf)) => {
@@ -360,11 +365,7 @@ impl Process {
                 },
                 Err(_) => { ; },
             }
-            /*            println!("meuuuuh");
-                          sleep(Duration::from_secs(1));*/
             let (stat, sig) = self.try_wait();
-            //(Some(exit_status), None) => 
-            //(None, Some(signal)) => 
             match self.config.autorestart {
                 Autorestart::TRUE => {self.try_execute();},
                 Autorestart::UNEXPECTED => {
