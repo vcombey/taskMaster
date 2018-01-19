@@ -147,8 +147,8 @@ impl Config {
             autorestart: match to_str(config, "autorestart") {
                 Some(slice) => match slice {
                     "unexpected" => Autorestart::UNEXPECTED,
-                    "true"=> Autorestart::TRUE,
-                    "false" => Autorestart::FALSE,
+                    "yes"=> Autorestart::TRUE,
+                    "no" => Autorestart::FALSE,
                     _ => panic!("bad value for autorestart"),
                 }
                 None => Autorestart::UNEXPECTED,
