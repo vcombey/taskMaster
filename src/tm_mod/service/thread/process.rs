@@ -359,6 +359,7 @@ impl Process {
                 Ok((ins, conf)) => {
                     eprintln!("INFO process '{}' receive {:?}", self.config.name, ins);
                     if ins == Instruction::SHUTDOWN {
+                        self.stop();
                         break ;
                     }
                     self.handle_cmd(ins, conf);

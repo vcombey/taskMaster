@@ -55,7 +55,7 @@ service_4:
 service_5:
   cat:
     cmd: cat
-    numprocs: 2
+    numprocs: 10
 
   nostart:
     cmd: ls.sh
