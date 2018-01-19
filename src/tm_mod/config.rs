@@ -25,8 +25,8 @@ macro_rules! define_to_ref (
                 _ => panic!("invalid type for: {}", champ),
             }
         }
-        );
     );
+);
 
 macro_rules! define_to (
     ($name:ident, $t:ident, $yt:ident) => (
@@ -40,8 +40,8 @@ macro_rules! define_to (
                 _ => panic!("invalid type:"),
             }
         }
-        );
     );
+);
 
 define_to_ref!(to_str, &'a str, String);
 define_to_ref!(to_hash, &'a yaml::Hash, Hash);
@@ -174,13 +174,13 @@ impl Config {
     pub fn fatal_cmp(&self, other: &Config) -> bool {
         if self.name != other.name ||
             self.argv != other.argv ||
-                self.workingdir != other.workingdir ||
-                self.env != other.env ||
-                self.stdout != other.stdout ||
-                self.stderr != other.stderr ||
-                self.umask != other.umask {
-                    return true;
-                }
+            self.workingdir != other.workingdir ||
+            self.env != other.env ||
+            self.stdout != other.stdout ||
+            self.stderr != other.stderr ||
+            self.umask != other.umask {
+                return true;
+            }
         false
     }
 
