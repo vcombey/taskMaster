@@ -234,7 +234,7 @@ pub mod test_cmd {
 
     #[test]
     fn test_cmd_no_process_name() {
-        println!("{:?}", Cmd::from_vec(vec!["start", "service_name:"]));
+        eprintln!("{:?}", Cmd::from_vec(vec!["start", "service_name:"]));
         assert_eq!(Cmd::from_vec(vec!["start", "service_name:"]), Err(ParseError::MissingProcess));
     }
 

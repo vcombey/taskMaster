@@ -262,7 +262,7 @@ impl Process {
             return format!("{}: ERROR (already running)", self.config.name);
         }
         for _nb_try in 0..self.config.startretries+1{
-            //println!("nb_try {}, startretries {}", nb_try, self.config.startretries);
+            //eprintln!("nb_try {}, startretries {}", nb_try, self.config.startretries);
             self.try_launch();
             if self.state == State::RUNNING {
                 return format!("{}: RUNNING", self.config.name);

@@ -93,7 +93,7 @@ impl<'tm> TmStruct<'tm> {
             .collect();
 
         eprintln!("nb receive: {}", nb_receive);
-        ExecErrors::result_from_e_vec(e)//.map_err(|e| println!("error is: {}",e));
+        ExecErrors::result_from_e_vec(e)//.map_err(|e| eprintln!("error is: {}",e));
     }
 
     /// Reads the content of the config file, and transforms it into a vector of

@@ -134,7 +134,7 @@ impl Config {
             },
             exitcodes: match exitcodes {
                 Some(v) => v,
-                None => vec![1, 2],
+                None => vec![0],
             },
             startretries: match to_i64(config, "startretries") {
                 Some(i) if i < 0 => panic!("startretries can't be negative"),

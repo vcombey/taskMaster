@@ -32,7 +32,7 @@ impl Thread {
     
 impl Drop for Thread {
     fn drop(&mut self) {
-        println!("Sending terminate message to one workers.");
+        eprintln!("Sending terminate message to one workers.");
 
         match self.sender.send((Instruction::SHUTDOWN, None)) {
             Err(_) => eprintln!("sending instruction shutdown failed"),

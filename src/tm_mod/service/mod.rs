@@ -49,7 +49,7 @@ impl Service {
 
     pub fn launch_from_hash(&mut self, process_hash: HashMap<String, Config>, sender_to_main: &mut mpsc::Sender<String>) {
         for (name, config) in process_hash.into_iter() {
-            //println!("name: {}", name);
+            //eprintln!("name: {}", name);
             self.thread_hash.insert(name.clone(), ThreadVec::new(&config, sender_to_main));
         }
     }

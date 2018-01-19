@@ -21,16 +21,16 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
         Some(&"help") => {
             match split.get(1) {
                 Some(value) => match *value {
-                    "start" => println!("{}", cli::HELP_START),
-                    "restart" => println!("{}", cli::HELP_RESTART),
-                    "stop" => println!("{}", cli::HELP_STOP),
-                    "reload" => println!("{}", cli::HELP_RELOAD),
-                    "status" => println!("{}", cli::HELP_STATUS),
-                    "shutdown" => println!("{}", cli::HELP_SHUTDOWN),
-                    "" => println!("{}", cli::HELP_DISPLAY),
-                    _ => println!("{}", cli::HELP_DISPLAY),
+                    "start" => eprintln!("{}", cli::HELP_START),
+                    "restart" => eprintln!("{}", cli::HELP_RESTART),
+                    "stop" => eprintln!("{}", cli::HELP_STOP),
+                    "reload" => eprintln!("{}", cli::HELP_RELOAD),
+                    "status" => eprintln!("{}", cli::HELP_STATUS),
+                    "shutdown" => eprintln!("{}", cli::HELP_SHUTDOWN),
+                    "" => eprintln!("{}", cli::HELP_DISPLAY),
+                    _ => eprintln!("{}", cli::HELP_DISPLAY),
                 },
-                None => println!("{}", cli::HELP_DISPLAY),
+                None => eprintln!("{}", cli::HELP_DISPLAY),
             };
             None
         },
@@ -46,7 +46,7 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
 fn emit<T>(stream: &mut TcpStream, t: T) -> Result<(), String>
     where T: serde::Serialize + serde::export::fmt::Debug
 {
-    //println!("cmd : {:?}", t);
+    //eprintln!("cmd : {:?}", t);
     let serialized : String = serde_json::to_string(&t).map_err(|e| format!("{}", e))?;
     stream.write(&serialized.as_bytes()).map_err(|e| format!("{}", e))?;
     Ok(())
@@ -61,7 +61,7 @@ fn main() {
         };
         if let Some(cmd) = parse_into_cmd(&res) {
             let mut buffer = String::new();
-            //println!("cmd : {:#?}", cmd);
+            //eprintln!("cmd : {:#?}", cmd);
             match TcpStream::connect("127.0.0.1:8080") {
                 Ok(mut stream) => {
                     match emit(&mut stream, cmd) {
@@ -69,7 +69,7 @@ fn main() {
                             if let Err(e) = stream.read_to_string(&mut buffer) {
                                 eprintln!("{}", e.description());
                             }
-                            println!("{}", buffer);
+                            eprintln!("{}", buffer);
                         },
                         Err(e) => eprintln!("{}", e),
                     }

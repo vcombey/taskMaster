@@ -1,45 +1,55 @@
-service_1:
-   stdout:
-     cmd: write_to_stdout.sh
-     stdout: /tmp/test/stdout.txt
+# service_1:
+#   stdout:
+#     cmd: write_to_stdout.sh
+#     stdout: /tmp/test/stdout.txt
 
-   stderr:
-     cmd: write_to_stderr.sh
-     stderr: /tmp/test/stderr.txt
- service_2:
-   restart:
-     cmd: die_after_n.sh 3
-     starttime: 4
-     startretries: 2
+#   stderr:
+#     cmd: write_to_stderr.sh
+#     stderr: /tmp/test/stderr.txt
+# service_2:
+#   restart:
+#     cmd: die_after_n.sh 3
+#     starttime: 4
+#     startretries: 2
 
-   workingdir:
-     cmd: pwd.sh
-     stdout: /tmp/test/pwd.txt
-     workingdir: /tmp
+#   workingdir:
+#     cmd: pwd.sh
+#     stdout: /tmp/test/pwd.txt
+#     workingdir: /tmp
+
 service_3:
-    loop_ls:
-      cmd: loop_ls.sh
-      stdout: /tmp/test/ls.txt
-      stopsignal: STOP
-  at:
-    cmd: exitcode.sh
+  # loop_ls:
+  #   cmd: loop_ls.sh
+  #   stdout: /tmp/test/ls.txt
+  #   stopsignal: STOP
+  ls:
+    cmd: ls.sh
     starttime: 1
-    exitcodes:
-      - 0
-    autorestart: unexpected
-service_4:
-    exitcode:
-      cmd: exitcode.sh
-      starttime: 1
-      exitcodes:
-        - 4
+    stdout: /tmp/test/ls.txt
+    stopsignal: STOP
+    numprocs: 2
 
-    env:
-      cmd: env.sh
-      starttime: 1
-      stdout: /tmp/test/env.txt
-      env:
-        TESTVAR_1: "value of testvar 1"
-        TESTVAR_2: "value of testvar 2"
+#   at:
+#     cmd: exitcode.sh
+#     starttime: 1
+#     exitcodes:
+#       - 0
+#     autorestart: unexpected
+
+# service_4:
+#   exitcode:
+#     cmd: exitcode.sh
+#     starttime: 1
+#     exitcodes:
+#       - 4
+#     autorestart: unexpected
+
+#   env:
+#     cmd: env.sh
+#     starttime: 1
+#     stdout: /tmp/test/env.txt
+#     env:
+#       TESTVAR_1: "lol"
+#       TESTVAR_2: "lul"
     
 

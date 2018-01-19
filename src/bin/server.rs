@@ -31,7 +31,7 @@ pub fn receive(stream: &mut TcpStream) -> Cmd {
 
     let nb_bytes = stream.read(&mut buffer).unwrap();
     let request = &buffer[..nb_bytes];
- //   println!("Request: {:?} {:?}", nb_bytes, String::from_utf8_lossy(request));
+ //   eprintln!("Request: {:?} {:?}", nb_bytes, String::from_utf8_lossy(request));
     return serde_json::from_str(&String::from_utf8_lossy(request)).unwrap();
 }
 
@@ -84,7 +84,7 @@ fn main() {
         .privileged_action(|| "Executed before drop privileges");
 
     match daemonize.start() {
-        Ok(_) => println!("Success, daemonized"),
+        Ok(_) => eprintln!("Success, daemonized"),
         Err(e) => eprintln!("{}", e),
     }
     */
