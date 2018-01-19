@@ -36,7 +36,10 @@ pub fn receive(stream: &mut TcpStream) -> Result<Cmd, ()> {
 }
 
 fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()> {
-    let cmd = receive(&mut stream)?;
+    let cmd = match receive(&mut stream) {
+        Ok(cmd) => cmd,
+        Err(_) => return Ok(()),
+    };
 
     if cmd.instruction == Instruction::SHUTDOWN {
         return Err(());
