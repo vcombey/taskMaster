@@ -8,11 +8,17 @@ use std::os::unix::process::ExitStatusExt;
 use std::io::Error;
 use std::thread::sleep;
 use std::time::Duration;
+use std::process::Stdio;
+
 use nix::sys::stat::umask;
 use nix::sys::stat::Mode;
 use nix::sys::signal::kill;
 use nix::sys::signal::Signal;
 use nix::unistd::Pid;
+
+use tm_mod::config::Config;
+use tm_mod::config::Autorestart;
+use tm_mod::cmd::Instruction;
 
 type Message = String;
 #[derive(Debug,PartialEq)]
@@ -24,9 +30,6 @@ enum State {
     EXITED,
     KILLED,
 }
-use tm_mod::config::Config;
-use tm_mod::config::Autorestart;
-use tm_mod::cmd::Instruction;
 
 #[derive(Debug)]
 /// A process struct represent a thread which handle a process
@@ -75,8 +78,13 @@ impl Process {
         if let Some(ref string) = self.config.stdout {
             match File::create(string) {
                 Ok(file) => {self.command.stdout(file);},
-                Err(e) => eprintln!("{}", e),
+                Err(e) => {eprintln!("{}", e); 
+                    self.command.stdout(Stdio::null());
+                },
             }
+        }
+        else {
+            self.command.stdout(Stdio::null());
         }
         self
     }
@@ -85,8 +93,14 @@ impl Process {
         if let Some(ref string) = self.config.stderr {
             match File::create(string) {
                 Ok(file) => {self.command.stderr(file);},
-                Err(e) => eprintln!("{}", e),
+                Err(e) => {eprintln!("{}", e); 
+                    self.command.stderr(Stdio::null());
+                },
+
             }
+        }
+        else {
+            self.command.stderr(Stdio::null());
         }
         self
     }
