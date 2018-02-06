@@ -166,7 +166,7 @@ impl Config {
             umask: match to_i64(config, "umask") {
                 Some(i) if i < 0 => panic!("umask can't be negative"),
                 Some(i) => i as u16,
-                None => 0700,
+                None => 0o700,
             },
             autorestart: match to_str(config, "autorestart") {
                 Some(slice) => match slice {

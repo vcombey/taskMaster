@@ -54,7 +54,7 @@ impl Process {
         sender: Sender<String>,
     ) -> Self {
         Process {
-            command: Command::new(config.argv.split(" ").next().unwrap()),
+            command: Command::new(config.argv.split(' ').next().unwrap()),
             config,
             receiver,
             sender,
@@ -175,7 +175,7 @@ impl Process {
                 Ok(Some(exit_status)) => {
                     match exit_status.code() {
                         Some(exit_status_code) => {
-                            if self.config.exitcodes.contains(&(exit_status_code as i64)) {
+                            if self.config.exitcodes.contains(&(i64::from(exit_status_code))) {
                                 eprintln!(
                                     "INFO exited: '{}' (exit status {}; expected)",
                                     self.config.name, exit_status_code
@@ -210,7 +210,7 @@ impl Process {
                 }
             }
         }
-        return (None, None);
+        (None, None)
     }
 
     /// try launch the programe one time
@@ -299,8 +299,7 @@ impl Process {
     fn stop(&mut self) -> Message {
         if let Some(ref mut child) = self.child {
             match kill(Pid::from_raw(child.id() as i32), self.config.stopsignal) {
-                Ok(_) => {}
-                Err(_) => {}
+                Ok(_) | Err(_) => {}
             }
         } else {
             eprintln!("{}: ERROR (not running)", self.config.name);
@@ -347,13 +346,13 @@ impl Process {
             Instruction::REREAD => match config {
                 Some(config) => {
                     self.config = config;
-                    format!("Process locally updating")
+                    String::from("Process locally updating")
                 }
-                None => format!("No config sent"),
+                None => String::from("No config sent"),
             },
-            _ => format!("unrecognised instruction"),
+            _ => String::from("unrecognised instruction"),
         };
-        if let Err(_) = self.sender.send(message) {
+        if self.sender.send(message).is_err() {
             eprintln!("process send to main thread failed");
         }
     }
@@ -366,16 +365,13 @@ impl Process {
         }
 
         loop {
-            match self.receiver.try_recv() {
-                Ok((ins, conf)) => {
-                    eprintln!("INFO process '{}' receive {:?}", self.config.name, ins);
-                    if ins == Instruction::SHUTDOWN {
-                        self.stop();
-                        break;
-                    }
-                    self.handle_cmd(ins, conf);
+            if let Ok((ins, conf)) = self.receiver.try_recv() {
+                eprintln!("INFO process '{}' receive {:?}", self.config.name, ins);
+                if ins == Instruction::SHUTDOWN {
+                    self.stop();
+                    break;
                 }
-                Err(_) => {}
+                self.handle_cmd(ins, conf);
             }
             let (stat, sig) = self.try_wait();
             match self.config.autorestart {
@@ -384,7 +380,7 @@ impl Process {
                 }
                 Autorestart::UNEXPECTED => match (stat, sig) {
                     (Some(exit_status), None) => {
-                        if !self.config.exitcodes.contains(&(exit_status as i64)) {
+                        if !self.config.exitcodes.contains(&i64::from(exit_status)) {
                             self.try_execute();
                         }
                     }

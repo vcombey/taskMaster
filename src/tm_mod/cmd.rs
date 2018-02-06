@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[derive(Serialize, PartialEq, Deserialize, Clone, Copy, Debug)]
 pub enum Instruction {
     START,
@@ -39,15 +41,15 @@ impl Cmd {
     }
 
     /// Create a command from a vector of string.
-    pub fn from_vec(word_list: Vec<&str>) -> Result<Cmd, ParseError> {
-        let instruction = match word_list.get(0).unwrap() {
-            &"start" => Instruction::START,
-            &"restart" => Instruction::RESTART,
-            &"stop" => Instruction::STOP,
-            &"reread" => Instruction::REREAD,
-            &"status" => Instruction::STATUS,
-            &"shutdown" => Instruction::SHUTDOWN,
-            &value => return Err(ParseError::InvalidCommand(value.to_string())),
+    pub fn from_vec(word_list: &[&str]) -> Result<Cmd, ParseError> {
+        let instruction = match word_list[0] {
+            "start" => Instruction::START,
+            "restart" => Instruction::RESTART,
+            "stop" => Instruction::STOP,
+            "reread" => Instruction::REREAD,
+            "status" => Instruction::STATUS,
+            "shutdown" => Instruction::SHUTDOWN,
+            value => return Err(ParseError::InvalidCommand(value.to_string())),
         };
         let mut target_vec: Vec<Target> = Vec::new();
         if instruction != Instruction::SHUTDOWN && instruction != Instruction::REREAD {
@@ -70,11 +72,12 @@ impl Cmd {
     }
 }
 
-impl Target {
+impl FromStr for Target {
+    type Err = ParseError;
     /// Receives a string that represents a target, returns the
     /// correct Target enum that fits the pattern.
-    pub fn from_str(chunk: &str) -> Result<Target, ParseError> {
-        let chunk_split: Vec<&str> = chunk.split(":").collect();
+    fn from_str(chunk: &str) -> Result<Target, ParseError> {
+        let chunk_split: Vec<&str> = chunk.split(':').collect();
 
         if chunk_split.get(3).is_some() {
             return Err(ParseError::ToManyLevels);

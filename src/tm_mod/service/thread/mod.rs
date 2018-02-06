@@ -32,14 +32,12 @@ impl Thread {
 
 impl Drop for Thread {
     fn drop(&mut self) {
-        match self.sender.send((Instruction::SHUTDOWN, None)) {
-            Err(_) => eprintln!("sending instruction shutdown failed"),
-            _ => {}
+        if self.sender.send((Instruction::SHUTDOWN, None)).is_err() {
+            eprintln!("sending instruction shutdown failed");
         }
         if let Some(j_h) = self.join_handle.take() {
-            match j_h.join() {
-                Err(e) => eprintln!("{:?}", e),
-                _ => {}
+            if let Err(e) = j_h.join() {
+                 eprintln!("{:?}", e);
             }
         }
     }

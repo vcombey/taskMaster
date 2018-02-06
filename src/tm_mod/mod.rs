@@ -53,7 +53,7 @@ impl<'tm> TmStruct<'tm> {
         ins: Instruction,
         nb_receive: &mut usize,
     ) -> Result<(), ExecErrors> {
-        for (_, service) in self.service_hash.iter() {
+        for service in self.service_hash.values() {
             if service.contains_process(p_name) {
                 return service.send_to_process(p_name, thread_id, ins, nb_receive);
             }
@@ -83,7 +83,7 @@ impl<'tm> TmStruct<'tm> {
     ) -> Result<(), ExecErrors> {
         let service = self.service_hash
             .get(s_name)
-            .ok_or(ExecError::ServiceName(String::from(s_name)));
+            .ok_or_else(|| ExecError::ServiceName(String::from(s_name)));
 
         service
             .map_err(|e| ExecErrors { e_vect: vec![e] })
@@ -100,7 +100,7 @@ impl<'tm> TmStruct<'tm> {
     ) -> Result<(), ExecErrors> {
         let service = self.service_hash
             .get(s_name)
-            .ok_or(ExecError::ServiceName(String::from(s_name)));
+            .ok_or_else(|| ExecError::ServiceName(String::from(s_name)));
 
         service
             .map_err(|e| ExecErrors { e_vect: vec![e] })
@@ -140,12 +140,12 @@ impl<'tm> TmStruct<'tm> {
             .read_to_string(&mut content)
             .expect("An error happened when reading the content of config file");
 
-        return YamlLoader::load_from_str(&content)
-            .expect("An error happened when converting to YAML struct");
+        YamlLoader::load_from_str(&content)
+            .expect("An error happened when converting to YAML struct")
     }
 
     pub fn launch_from_hash(&mut self, map: HashMap<String, HashMap<String, Config>>) {
-        for (service, map) in map.into_iter() {
+        for (service, map) in map {
             let mut s = Service::new(service);
             s.launch_from_hash(map, &mut self.sender_to_main);
             self.service_hash.insert(s.name.clone(), s);
@@ -203,7 +203,7 @@ impl<'tm> TmStruct<'tm> {
             // Insert into big map
             service_hash.insert(String::from(service_name), process_map);
         }
-        return service_hash;
+        service_hash
     }
     pub fn try_receive_from_threads(
         &self,

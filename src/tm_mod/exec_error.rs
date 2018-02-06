@@ -28,12 +28,8 @@ impl error::Error for ExecError {
 impl fmt::Display for ExecError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ExecError::ProcessName(ref name) => write!(f, "{} {}", self.description(), name),
-            ExecError::ServiceName(ref name) => write!(f, "{} {}", self.description(), name),
-            ExecError::Sending((ref p_name, thread_id)) => {
-                write!(f, "{} ({},{})", self.description(), p_name, thread_id)
-            }
-            ExecError::ThreadOutofRange((ref p_name, thread_id)) => {
+            ExecError::ProcessName(ref name) | ExecError::ServiceName(ref name) => write!(f, "{} {}", self.description(), name),
+            ExecError::Sending((ref p_name, thread_id)) | ExecError::ThreadOutofRange((ref p_name, thread_id)) => {
                 write!(f, "{} ({},{})", self.description(), p_name, thread_id)
             }
         }
@@ -63,9 +59,9 @@ impl fmt::Display for ExecErrors {
 impl ExecErrors {
     pub fn result_from_e_vec(e: Vec<ExecError>) -> Result<(), ExecErrors> {
         if e.is_empty() {
-            return Ok(());
+            Ok(())
         } else {
-            return Err(ExecErrors { e_vect: e });
+            Err(ExecErrors { e_vect: e })
         }
     }
 }

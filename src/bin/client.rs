@@ -27,8 +27,7 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
                     "reload" => eprintln!("{}", cli::HELP_RELOAD),
                     "status" => eprintln!("{}", cli::HELP_STATUS),
                     "shutdown" => eprintln!("{}", cli::HELP_SHUTDOWN),
-                    "" => eprintln!("{}", cli::HELP_DISPLAY),
-                    _ => eprintln!("{}", cli::HELP_DISPLAY),
+                    "" | _ => eprintln!("{}", cli::HELP_DISPLAY),
                 },
                 None => eprintln!("{}", cli::HELP_DISPLAY),
             };
@@ -36,7 +35,7 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
         }
         Some(_) => {
             // Parse and discard error
-            Cmd::from_vec(split).map_err(|e| eprintln!("{}", e)).ok()
+            Cmd::from_vec(&split).map_err(|e| eprintln!("{}", e)).ok()
         }
         None => None,
     }
@@ -49,7 +48,7 @@ where
     //eprintln!("cmd : {:?}", t);
     let serialized: String = serde_json::to_string(&t).map_err(|e| format!("{}", e))?;
     stream
-        .write(&serialized.as_bytes())
+        .write(serialized.as_bytes())
         .map_err(|e| format!("{}", e))?;
     Ok(())
 }

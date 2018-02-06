@@ -53,13 +53,13 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()>
     let mut nb_receive = 0;
     let response_err = match tm.exec_cmd(cmd, &mut nb_receive) {
         Err(e) => format!("{}", e),
-        Ok(_) => format!(""),
+        Ok(_) => String::new(),
     };
     let response = tm.try_receive_from_threads(nb_receive, Duration::from_secs(2))
-        .unwrap_or(String::from("pb receiving from threads"));
+        .unwrap_or_else(|_| String::from("pb receiving from threads"));
     let response = format!("{}{}", response, response_err);
     stream
-        .write(response.as_bytes())
+        .write_all(response.as_bytes())
         .expect("Cannot write response to stream");
     Ok(())
 }
