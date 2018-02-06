@@ -1,5 +1,5 @@
-extern crate task_master;
 extern crate liner;
+extern crate task_master;
 
 extern crate serde;
 extern crate serde_json;
@@ -7,7 +7,7 @@ extern crate serde_json;
 use liner::Context;
 
 use std::net::TcpStream;
-use std::io::{Write, Read};
+use std::io::{Read, Write};
 
 use task_master::tm_mod::cmd::Cmd;
 use task_master::cli;
@@ -33,22 +33,24 @@ fn parse_into_cmd(line: &str) -> Option<Cmd> {
                 None => eprintln!("{}", cli::HELP_DISPLAY),
             };
             None
-        },
-        Some(_) => { // Parse and discard error
-            Cmd::from_vec(split).map_err(|e| eprintln!("{}", e))
-                .ok()
-                },
+        }
+        Some(_) => {
+            // Parse and discard error
+            Cmd::from_vec(split).map_err(|e| eprintln!("{}", e)).ok()
+        }
         None => None,
     }
 }
 
-
 fn emit<T>(stream: &mut TcpStream, t: T) -> Result<(), String>
-    where T: serde::Serialize + serde::export::fmt::Debug
+where
+    T: serde::Serialize + serde::export::fmt::Debug,
 {
     //eprintln!("cmd : {:?}", t);
-    let serialized : String = serde_json::to_string(&t).map_err(|e| format!("{}", e))?;
-    stream.write(&serialized.as_bytes()).map_err(|e| format!("{}", e))?;
+    let serialized: String = serde_json::to_string(&t).map_err(|e| format!("{}", e))?;
+    stream
+        .write(&serialized.as_bytes())
+        .map_err(|e| format!("{}", e))?;
     Ok(())
 }
 
@@ -57,22 +59,20 @@ fn main() {
     loop {
         let res = match con.read_line("task_master> ", &mut |_| {}) {
             Ok(line) => line,
-            Err(_) => return ,
+            Err(_) => return,
         };
         if let Some(cmd) = parse_into_cmd(&res) {
             let mut buffer = String::new();
             //eprintln!("cmd : {:#?}", cmd);
             match TcpStream::connect("127.0.0.1:4242") {
-                Ok(mut stream) => {
-                    match emit(&mut stream, cmd) {
-                        Ok(_) => {
-                            if let Err(e) = stream.read_to_string(&mut buffer) {
-                                eprintln!("{}", e.description());
-                            }
-                            eprintln!("{}", buffer);
-                        },
-                        Err(e) => eprintln!("{}", e),
+                Ok(mut stream) => match emit(&mut stream, cmd) {
+                    Ok(_) => {
+                        if let Err(e) = stream.read_to_string(&mut buffer) {
+                            eprintln!("{}", e.description());
+                        }
+                        eprintln!("{}", buffer);
                     }
+                    Err(e) => eprintln!("{}", e),
                 },
                 Err(e) => eprintln!("{}", e.description()),
             }
@@ -84,7 +84,7 @@ fn main() {
 }
 
 #[cfg(test)]
-pub mod test_parse_into_cmd{
+pub mod test_parse_into_cmd {
     use super::*;
     use task_master::tm_mod::cmd::*;
 
@@ -112,25 +112,41 @@ pub mod test_parse_into_cmd{
 
     #[test]
     fn test_cmd_parse_many_process() {
-        assert_eq!(parse_into_cmd("     start     process_one    process_two").unwrap(),
-        Cmd::new(Instruction::START,
-                 vec![Target::Process("process_one".to_string(), None), Target::Process("process_two".to_string(), None)],
-                 ));
+        assert_eq!(
+            parse_into_cmd("     start     process_one    process_two").unwrap(),
+            Cmd::new(
+                Instruction::START,
+                vec![
+                    Target::Process("process_one".to_string(), None),
+                    Target::Process("process_two".to_string(), None),
+                ],
+            )
+        );
     }
 
     #[test]
     fn test_cmd_mix() {
-        assert_eq!(parse_into_cmd("start process_one service_one:process_two").unwrap(),
-        Cmd::new(Instruction::START,
-                 vec![Target::Process("process_one".to_string(), None), Target::ServiceProcess(("service_one".to_string(), "process_two".to_string(), None))],
-                 ));
+        assert_eq!(
+            parse_into_cmd("start process_one service_one:process_two").unwrap(),
+            Cmd::new(
+                Instruction::START,
+                vec![
+                    Target::Process("process_one".to_string(), None),
+                    Target::ServiceProcess((
+                        "service_one".to_string(),
+                        "process_two".to_string(),
+                        None,
+                    )),
+                ],
+            )
+        );
     }
 
     #[test]
     fn test_cmd_no_target() {
-        assert_eq!(parse_into_cmd("start").unwrap(),
-        Cmd::new(Instruction::START,
-                 vec![Target::ALL],));
+        assert_eq!(
+            parse_into_cmd("start").unwrap(),
+            Cmd::new(Instruction::START, vec![Target::ALL],)
+        );
     }
 }
-

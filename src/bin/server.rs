@@ -4,7 +4,7 @@ extern crate serde;
 extern crate serde_json;
 
 use std::env;
-use std::net::{TcpStream,TcpListener};
+use std::net::{TcpListener, TcpStream};
 use std::io::{Read, Write};
 use std::time::Duration;
 
@@ -12,8 +12,7 @@ use task_master::tm_mod::TmStruct;
 use task_master::tm_mod::cmd::Cmd;
 use task_master::tm_mod::cmd::Instruction;
 
-
-fn parse_argv (args: &[String]) -> (&str, &str) {
+fn parse_argv(args: &[String]) -> (&str, &str) {
     if args.len() < 3 {
         panic!("Not enough arguments");
     }
@@ -29,10 +28,13 @@ fn parse_argv (args: &[String]) -> (&str, &str) {
 pub fn receive(stream: &mut TcpStream) -> Result<Cmd, ()> {
     let mut buffer = [0; 512];
 
-    let nb_bytes = stream.read(&mut buffer).expect("Cannot read instruction from stream");
+    let nb_bytes = stream
+        .read(&mut buffer)
+        .expect("Cannot read instruction from stream");
     let request = &buffer[..nb_bytes];
- //   eprintln!("Request: {:?} {:?}", nb_bytes, String::from_utf8_lossy(request));
-    serde_json::from_str(&String::from_utf8_lossy(request)).map_err(|_| eprintln!("Could not interpret request from the client"))
+    //   eprintln!("Request: {:?} {:?}", nb_bytes, String::from_utf8_lossy(request));
+    serde_json::from_str(&String::from_utf8_lossy(request))
+        .map_err(|_| eprintln!("Could not interpret request from the client"))
 }
 
 fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()> {
@@ -56,7 +58,9 @@ fn handle_connection(mut stream: TcpStream, tm: &mut TmStruct) -> Result<(), ()>
     let response = tm.try_receive_from_threads(nb_receive, Duration::from_secs(2))
         .unwrap_or(String::from("pb receiving from threads"));
     let response = format!("{}{}", response, response_err);
-    stream.write(response.as_bytes()).expect("Cannot write response to stream");
+    stream
+        .write(response.as_bytes())
+        .expect("Cannot write response to stream");
     Ok(())
 }
 

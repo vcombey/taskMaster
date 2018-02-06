@@ -1,7 +1,7 @@
 // Loading YAML
 extern crate yaml_rust;
 #[allow(unused_imports)]
-use yaml_rust::{Yaml,YamlLoader};
+use yaml_rust::{Yaml, YamlLoader};
 
 // Loading std
 use std::collections::HashMap;
@@ -46,7 +46,13 @@ impl<'tm> TmStruct<'tm> {
         }
     }
 
-    fn send_to_process(&self, p_name: &str, thread_id: Option<usize>, ins: Instruction, nb_receive: &mut usize) -> Result<(), ExecErrors> {
+    fn send_to_process(
+        &self,
+        p_name: &str,
+        thread_id: Option<usize>,
+        ins: Instruction,
+        nb_receive: &mut usize,
+    ) -> Result<(), ExecErrors> {
         for (_, service) in self.service_hash.iter() {
             if service.contains_process(p_name) {
                 return service.send_to_process(p_name, thread_id, ins, nb_receive);
@@ -54,9 +60,14 @@ impl<'tm> TmStruct<'tm> {
         }
         ExecErrors::result_from_e_vec(vec![ExecError::ProcessName(String::from(p_name))])
     }
-    
-    fn send_to_all_service(&self, ins: Instruction, nb_receive: &mut usize) -> Result<(), ExecErrors> {
-        let e: Vec<ExecError> = self.service_hash.values()
+
+    fn send_to_all_service(
+        &self,
+        ins: Instruction,
+        nb_receive: &mut usize,
+    ) -> Result<(), ExecErrors> {
+        let e: Vec<ExecError> = self.service_hash
+            .values()
             .filter_map(|s| s.send_to_all_process(ins, nb_receive).err())
             .flat_map(|e| e.e_vect.into_iter())
             .collect();
@@ -64,45 +75,69 @@ impl<'tm> TmStruct<'tm> {
         ExecErrors::result_from_e_vec(e)
     }
 
-    fn send_to_service(&self, s_name: &str, ins: Instruction, nb_receive: &mut usize) -> Result<(), ExecErrors> {
-        let service = self.service_hash.get(s_name)
+    fn send_to_service(
+        &self,
+        s_name: &str,
+        ins: Instruction,
+        nb_receive: &mut usize,
+    ) -> Result<(), ExecErrors> {
+        let service = self.service_hash
+            .get(s_name)
             .ok_or(ExecError::ServiceName(String::from(s_name)));
 
-        service.map_err(|e| ExecErrors{e_vect: vec![e]})
+        service
+            .map_err(|e| ExecErrors { e_vect: vec![e] })
             .and_then(|s| s.send_to_all_process(ins, nb_receive))
     }
 
-    fn send_to_service_process(&self, s_name: &str, p_name: &str, thread_id: Option<usize>, ins: Instruction, nb_receive: &mut usize) -> Result<(), ExecErrors> {
-        let service = self.service_hash.get(s_name)
+    fn send_to_service_process(
+        &self,
+        s_name: &str,
+        p_name: &str,
+        thread_id: Option<usize>,
+        ins: Instruction,
+        nb_receive: &mut usize,
+    ) -> Result<(), ExecErrors> {
+        let service = self.service_hash
+            .get(s_name)
             .ok_or(ExecError::ServiceName(String::from(s_name)));
 
-        service.map_err(|e| ExecErrors{e_vect: vec![e]})
+        service
+            .map_err(|e| ExecErrors { e_vect: vec![e] })
             .and_then(|s| s.send_to_process(p_name, thread_id, ins, nb_receive))
     }
 
     pub fn exec_cmd(&mut self, cmd: Cmd, nb_receive: &mut usize) -> Result<(), ExecErrors> {
         let ins = cmd.instruction;
-        let e: Vec<ExecError>  = cmd.target_vec.into_iter().filter_map(|target| {
-            match target {
-                Target::ALL => self.send_to_all_service(ins, nb_receive),
-                Target::Process(p_name, thread_id) => self.send_to_process(&p_name, thread_id, ins, nb_receive),
-                Target::Service(s_name) => self.send_to_service(&s_name, ins, nb_receive),
-                Target::ServiceProcess((s_name, p_name, thread_id)) => self.send_to_service_process(&s_name, &p_name, thread_id, ins, nb_receive),
-            }.err()
-        }).flat_map(|e| e.e_vect.into_iter())
+        let e: Vec<ExecError> = cmd.target_vec
+            .into_iter()
+            .filter_map(|target| {
+                match target {
+                    Target::ALL => self.send_to_all_service(ins, nb_receive),
+                    Target::Process(p_name, thread_id) => {
+                        self.send_to_process(&p_name, thread_id, ins, nb_receive)
+                    }
+                    Target::Service(s_name) => self.send_to_service(&s_name, ins, nb_receive),
+                    Target::ServiceProcess((s_name, p_name, thread_id)) => {
+                        self.send_to_service_process(&s_name, &p_name, thread_id, ins, nb_receive)
+                    }
+                }.err()
+            })
+            .flat_map(|e| e.e_vect.into_iter())
             .collect();
 
-        ExecErrors::result_from_e_vec(e)//.map_err(|e| eprintln!("error is: {}",e));
+        ExecErrors::result_from_e_vec(e) //.map_err(|e| eprintln!("error is: {}",e));
     }
 
     /// Reads the content of the config file, and transforms it into a vector of
     /// Yaml struct.
-    pub fn parse_config_file(&'tm self) -> Vec<Yaml>{
-        let mut stream = File::open(self.config_file)
-            .expect("An error happened when opening the config file");
+    pub fn parse_config_file(&'tm self) -> Vec<Yaml> {
+        let mut stream =
+            File::open(self.config_file).expect("An error happened when opening the config file");
 
         let mut content = String::new();
-        stream.read_to_string(&mut content)
+        stream
+            .read_to_string(&mut content)
             .expect("An error happened when reading the content of config file");
 
         return YamlLoader::load_from_str(&content)
@@ -123,7 +158,7 @@ impl<'tm> TmStruct<'tm> {
     /// same name, and multiple process cannot have the same name EVEN
     /// ACROSS different services, and finally a process cannot have
     /// the same name a service does. 0 ambiguity allowed.
-    pub fn hash_config(&self) -> HashMap<String, HashMap<String,Config>> {
+    pub fn hash_config(&self) -> HashMap<String, HashMap<String, Config>> {
         let doc = self.parse_config_file();
         let doc = &doc[0];
         let doc = doc.as_hash().expect("Failed to convert YAML to hash");
@@ -133,15 +168,21 @@ impl<'tm> TmStruct<'tm> {
         // Big map build
         let mut service_hash = HashMap::new();
         for (service_name, service_yaml) in doc.iter() {
-            let service_name = service_name.as_str().expect("Expected str for the service name");
-            let service_yaml = service_yaml.as_hash().expect("Failed to convert YAML to hash");
+            let service_name = service_name
+                .as_str()
+                .expect("Expected str for the service name");
+            let service_yaml = service_yaml
+                .as_hash()
+                .expect("Failed to convert YAML to hash");
 
             // Litle map build
             let mut process_map = HashMap::new();
             for (process_name, process_config) in service_yaml.iter() {
-                let process_name = process_name.as_str()
+                let process_name = process_name
+                    .as_str()
                     .expect(&format!("Missing command for process {:?}", process_name));
-                let argv = process_config["cmd"].as_str()
+                let argv = process_config["cmd"]
+                    .as_str()
                     .expect("Missing process name");
 
                 //  Check if a service/process with the same name aready exists
@@ -149,8 +190,10 @@ impl<'tm> TmStruct<'tm> {
                     panic!("Cannot create process of the name '{}': a process of the same name already exists", process_name);
                 }
                 // Insert into little map
-                process_map.insert(String::from(process_name),
-                                   Config::new(process_name, argv, process_config));
+                process_map.insert(
+                    String::from(process_name),
+                    Config::new(process_name, argv, process_config),
+                );
                 taken_process_names.push(process_name);
             }
             // Check if a service / process with the same name already exists
@@ -162,7 +205,11 @@ impl<'tm> TmStruct<'tm> {
         }
         return service_hash;
     }
-    pub fn try_receive_from_threads(&self, nb_receive: usize, timeout: Duration) -> Result<String, mpsc::TryRecvError>{
+    pub fn try_receive_from_threads(
+        &self,
+        nb_receive: usize,
+        timeout: Duration,
+    ) -> Result<String, mpsc::TryRecvError> {
         let mut response = String::new();
         for _ in 0..nb_receive {
             match self.receiver_from_threads.recv_timeout(timeout) {
@@ -187,20 +234,21 @@ impl<'tm> TmStruct<'tm> {
         // hash but not in the new one and removed them from service_hash
         // Every element for which this function returns false is removed from
         // the HashMap
-        self.service_hash.retain( |service_name, _|
-            reread_service_hash.get(service_name).is_some()
-        );
+        self.service_hash
+            .retain(|service_name, _| reread_service_hash.get(service_name).is_some());
 
         // Spawn services corresponding to keys contained in the new services
         // hashmap and remove them from the HashMap
         // Every element for which this function returns false is removed from
-        // the HashMap 
-        reread_service_hash.retain( |new_service_name, new_process_hash| {
+        // the HashMap
+        reread_service_hash.retain(|new_service_name, new_process_hash| {
             match self.service_hash.get(new_service_name) {
-                None => { let mut s = Service::new(new_service_name.clone());
-                          s.launch_from_hash(new_process_hash.clone(), &mut self.sender_to_main);
-                          self.service_hash.insert(s.name.clone(), s);
-                          false },
+                None => {
+                    let mut s = Service::new(new_service_name.clone());
+                    s.launch_from_hash(new_process_hash.clone(), &mut self.sender_to_main);
+                    self.service_hash.insert(s.name.clone(), s);
+                    false
+                }
                 Some(_) => true,
             }
         });
