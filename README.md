@@ -1,40 +1,41 @@
 # TaskMaster
 
 A 42 school project. The goal of this project is to make a job control daemon, with features
-similar to supervisor.
+similar to [supervisor](http://supervisord.org/).
+
+Subject can be found in the ressource directory !
 
 ## Getting Started
 
-We have chosen a Client-server architecture. And the server manages programs in a multithread fashion.
+We have chosen a Client-server architecture, with the server managing programs in a multithreaded fashion.
 
 ### Installing
 
 
 ```
-Cargo run --bin server -- -c [config_file]
-Cargo run --bin client
+cargo run --bin server -- -c [config_file]
+cargo run --bin client
 ```
 
 Or
 
 ```
-Cargo build
+cargo build
 ./target/debug/server -c [config_file]
 ./target/debug/client
 ```
 
-The config file must be in YAML. An exemple of configuration file is present in the ressources directory.
+The config file must be in YAML. Exemples of configuration file with the available option are present in the ressources directory.
+The option's behavior should be very similar to supervisor's behavior with equivalent options.
 
-## Running the tests
+## Tests
 
-Explain how to run the automated tests for this system
+Automated test concern mainly the parsing of the command on the client side and the parsing of the config file on the server side.
 
-### Tests
-
-Explain what these tests test and why
+### Running the tests
 
 ```
-Give an example
+cargo test
 ```
 
 
@@ -45,5 +46,5 @@ Give an example
 
 
 ## Authors
-* **DE SEDE Adrien** - [Ixskill](https://github.com/Ixskill)
+* **DE SEDE Adrien** - [ade-sede](https://github.com/ade-sede)
 * **COMBEY Vincent** - [vcombey](https://github.com/vcombey)
